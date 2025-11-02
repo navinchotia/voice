@@ -225,27 +225,18 @@ if user_input:
     with st.spinner("Neha type kar rahi hai... 💭"):
         reply = generate_reply(st.session_state.memory, user_input)
 
+    # --- Text Output ---
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
 
-    # --- Hindi Speech Output using gTTS ---
-    from gtts import gTTS
-    import tempfile
-
+    # --- Audio Output (Hindi speech using gTTS) ---
     try:
-        # Convert the assistant's reply to Hindi speech
-        tts = gTTS(text=reply, lang='hi')
-
-        # Save temporarily and play
+        from gtts import gTTS
+        import tempfile
+        tts = gTTS(text=reply, lang='hi', slow=False)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
             tts.save(fp.name)
-            st.audio(fp.name, format='audio/mp3')
-
+            st.audio(fp.name, format='audio/mp3', start_time=0)  # ✅ This plays the audio
     except Exception as e:
         st.warning(f"Speech output error: {e}")
-
-
-   # -- st.rerun()
-
-
 
