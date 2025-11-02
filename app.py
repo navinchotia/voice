@@ -180,7 +180,7 @@ st.set_page_config(page_title="Neha â€“ Your Hinglish AI Friend", page_icon="ðŸ’
 st.markdown("""
 <style>
   .stApp { background-color: #e5ddd5; font-family: 'Roboto', sans-serif !important; }
-  h1 { text-align: center; font-weight: 600; font-size: 20px; margin-top: -10px; }
+  h1 { text-align: center; font-weight: 500; font-size: 16px; margin-top: -10px; }
   iframe { margin: 1px 0 !important; }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -249,3 +249,4 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
