@@ -1,6 +1,5 @@
 streamlit
-openai
-google-cloud-speech
+google-generativeai
 gtts
-SpeechRecognition
-pyaudio
+pytz
+requests
