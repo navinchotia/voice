@@ -266,7 +266,7 @@ for msg in st.session_state.messages:
             clean_text = re.sub(r"[^\w\s,.'!?-]", "", msg["content"])
 
             api_key = os.getenv("ELEVEN_API_KEY") or "YOUR_ELEVEN_API_KEY"
-            voice_id = "YOUR_VOICE_ID"  # e.g., "21m00Tcm4TlvDq8ikWAM"
+            voice_id = "mfMM3ijQgz8QtMeKifko"  # e.g., "21m00Tcm4TlvDq8ikWAM"
             url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
             payload = {
@@ -313,6 +313,7 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
 
