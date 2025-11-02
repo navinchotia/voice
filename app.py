@@ -1,74 +1,241 @@
 import streamlit as st
-from openai import OpenAI
-from google.cloud import speech
-from gtts import gTTS
-import io
+import google.generativeai as genai
 import os
+import json
+from datetime import datetime
+import pytz
+import requests
+import random
+import streamlit.components.v1 as components
+from gtts import gTTS  # <-- Added for speech
+from io import BytesIO
 
-# --- Configuration ---
-st.set_page_config(page_title="Neha Hindi Chatbot - with Voice", page_icon="🪷")
-st.title("🪷 Neha - Hindi Practice Chatbot (with Voice)")
-st.markdown("Chat with Neha in Hindi or Hinglish — now with voice support!")
+# -----------------------------
+# CONFIGURATION
+# -----------------------------
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or "YOUR_GEMINI_API_KEY"
+SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "YOUR_SERPER_API_KEY"
+genai.configure(api_key=GEMINI_API_KEY)
 
-# --- Initialize API keys ---
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_key.json"
+BOT_NAME = "Neha"
+MEMORY_FILE = "user_memory.json"
 
-# --- Transcribe Audio using Google Cloud ---
-def transcribe_audio(audio_bytes):
-    client_speech = speech.SpeechClient()
-    audio = speech.RecognitionAudio(content=audio_bytes)
-    config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=16000,
-        language_code="hi-IN"
+# -----------------------------
+# MEMORY FUNCTIONS
+# -----------------------------
+def load_memory():
+    if os.path.exists(MEMORY_FILE):
+        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {
+        "user_name": None,
+        "gender": None,
+        "chat_history": [],
+        "facts": [],
+        "timezone": "Asia/Kolkata"
+    }
+
+def save_memory(memory):
+    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(memory, f, ensure_ascii=False, indent=2)
+
+def remember_user_info(memory, user_input):
+    text = user_input.lower()
+    for phrase in ["mera naam", "i am ", "this is ", "my name is "]:
+        if phrase in text:
+            try:
+                name = text.split(phrase)[1].split()[0].title()
+                memory["user_name"] = name
+                break
+            except:
+                pass
+    if any(x in text for x in ["i am male", "main ladka hoon", "boy", "man"]):
+        memory["gender"] = "male"
+    elif any(x in text for x in ["i am female", "main ladki hoon", "girl", "woman"]):
+        memory["gender"] = "female"
+    save_memory(memory)
+
+# -----------------------------
+# TIME FUNCTION
+# -----------------------------
+def get_now(memory):
+    tz_name = memory.get("timezone", "Asia/Kolkata")
+    try:
+        tz = pytz.timezone(tz_name)
+    except Exception:
+        tz = pytz.timezone("Asia/Kolkata")
+    return datetime.now(tz).strftime("%A, %d %B %Y %I:%M %p")
+
+# -----------------------------
+# WEB SEARCH
+# -----------------------------
+def web_search(query):
+    if not SERPER_API_KEY:
+        return "Live search unavailable."
+    try:
+        headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+        data = {"q": query}
+        r = requests.post("https://google.serper.dev/search", headers=headers, json=data, timeout=12)
+        results = r.json()
+        if "knowledge" in results and results["knowledge"].get("description"):
+            return results["knowledge"]["description"]
+        if "organic" in results and results["organic"]:
+            return results["organic"][0].get("snippet", "Kuch result nahi mila.")
+        return "Kuch relevant result nahi mila 😅"
+    except Exception as e:
+        return f"Search failed: {e}"
+
+# -----------------------------
+# PROMPTS
+# -----------------------------
+def summarize_profile(memory):
+    parts = []
+    if memory.get("user_name"):
+        parts.append(f"User ka naam {memory['user_name']} hai.")
+    if memory.get("facts"):
+        parts.append("Recent info: " + "; ".join(memory["facts"][-3:]))
+    return " ".join(parts) or "User ke baare mein abhi zyada info nahi hai."
+
+def build_system_prompt(memory):
+    now = get_now(memory)
+    gender_style = ""
+    if memory.get("gender") == "male":
+        gender_style = "User male hai, tone slightly neutral rakho."
+    elif memory.get("gender") == "female":
+        gender_style = "User female hai, tone thoda formal and warm rakho."
+    return (
+        f"Tum ek friendly female Hinglish chatbot ho jiska naam {BOT_NAME} hai. "
+        "Tumhara tone ek 30 saal ki mature ladki jaisa hai – modern, warm lekin short baat karti ho. "
+        "Tum Delhi me rahti ho. Respond according to Delhi time zone. "
+        "Don't show you are a chatbot, assume imaginary personality of any random female with common interests, life profile etc. "
+        "Simple Hindi aur English mix mein baat karo. Don't use words like - yaar, mast, chill, vibe etc. frequently. "
+        "Kabhi bhi user ke gender ko directly mat mention karo. "
+        "Do not repeat anything unless asked. Never use pronoun 'tu'. "
+        f"Aaj ka date aur time hai {now}. "
+        f"{summarize_profile(memory)} {gender_style}"
     )
-    response = client_speech.recognize(config=config, audio=audio)
-    return response.results[0].alternatives[0].transcript if response.results else ""
 
-# --- Generate TTS (gTTS) ---
-def speak_text(text):
-    tts = gTTS(text=text, lang='hi')
-    audio_fp = io.BytesIO()
-    tts.write_to_fp(audio_fp)
-    audio_fp.seek(0)
-    st.audio(audio_fp, format='audio/mp3', autoplay=True)
+# -----------------------------
+# MEMORY SUMMARIZATION
+# -----------------------------
+def summarize_old_memory(memory):
+    if len(memory.get("chat_history", [])) < 10:
+        return memory
+    try:
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        past_text = "\n".join(
+            [f"User: {c['user']}\n{BOT_NAME}: {c['bot']}" for c in memory["chat_history"][-10:]]
+        )
+        result = model.generate_content(
+            "Summarize key user facts in 3 short Hinglish bullets:\n" + past_text
+        )
+        summary = (result.text or "").strip()
+        if summary:
+            memory.setdefault("facts", []).append(summary)
+            memory["chat_history"] = memory["chat_history"][-8:]
+            save_memory(memory)
+    except Exception as e:
+        print(f"[Memory summarization error: {e}]")
+    return memory
 
-# --- Chatbot logic (same as your Neha chatbot) ---
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-def get_neha_reply(user_input):
-    conversation = [{"role": "system", "content": "You are Neha, a friendly Hindi practice chatbot."}]
-    for msg in st.session_state.chat_history:
-        conversation.append({"role": msg["role"], "content": msg["content"]})
-    conversation.append({"role": "user", "content": user_input})
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=conversation,
+# -----------------------------
+# GENERATE REPLY
+# -----------------------------
+def generate_reply(memory, user_input):
+    if not user_input.strip():
+        return "Kuch toh bolo! 😄"
+    remember_user_info(memory, user_input)
+    if any(w in user_input.lower() for w in ["news", "weather", "price", "rate", "update"]):
+        info = web_search(user_input)
+        return f"Mujhe live search se pata chala: {info}"
+    context = "\n".join(
+        [f"You: {c['user']}\n{BOT_NAME}: {c['bot']}" for c in memory.get("chat_history", [])[-8:]]
     )
-    reply = response.choices[0].message.content
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.session_state.chat_history.append({"role": "assistant", "content": reply})
+    prompt = f"{build_system_prompt(memory)}\n\nConversation:\n{context}\n\nYou: {user_input}\n{BOT_NAME}:"
+    try:
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        result = model.generate_content(prompt)
+        reply = result.text.strip()
+    except Exception as e:
+        reply = f"Oops! Thoda issue aaya: {e}"
+    memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply})
+    if len(memory["chat_history"]) % 20 == 0:
+        summarize_old_memory(memory)
+    save_memory(memory)
     return reply
 
-# --- UI ---
-audio_data = st.audio_input("🎤 Record your message (Hindi or Hinglish):")
+# -----------------------------
+# STREAMLIT UI
+# -----------------------------
+st.set_page_config(page_title="Neha – Your Hinglish AI Friend", page_icon="💬")
 
-if audio_data:
-    st.info("Transcribing speech...")
-    transcript = transcribe_audio(audio_data.getvalue())
-    if transcript:
-        st.write(f"**You said:** {transcript}")
-        reply = get_neha_reply(transcript)
-        st.markdown(f"**Neha:** {reply}")
-        speak_text(reply)
-    else:
-        st.warning("Could not understand the audio. Try again.")
+st.markdown("""
+<style>
+  .stApp { background-color: #e5ddd5; font-family: 'Roboto', sans-serif !important; }
+  h1 { text-align: center; font-weight: 600; font-size: 20px; margin-top: -10px; }
+  iframe { margin: 1px 0 !important; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+""", unsafe_allow_html=True)
 
-user_text = st.text_input("💬 Or type your message here:")
-if st.button("Send") and user_text:
-    reply = get_neha_reply(user_text)
-    st.markdown(f"**Neha:** {reply}")
-    speak_text(reply)
+st.title("💬 Neha – Your Hinglish AI Friend by Hindi Hour")
+
+# --- Memory initialization ---
+if "memory" not in st.session_state:
+    st.session_state.memory = load_memory()
+
+# --- Chat Display ---
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hi! Main Neha hoon 😊 Main Hinglish me baat kar sakti hun!"}
+    ]
+
+# --- Render Chat Bubbles ---
+for msg in st.session_state.messages:
+    role = "user" if msg["role"] == "user" else "bot"
+    name = "You" if role == "user" else "Neha"
+
+    msg_length = len(msg["content"])
+    height = min(300, max(90, 60 + msg_length // 2))
+
+    bubble_html = f"""
+    <html><head>
+    <style>
+      body {{ margin: 0; padding: 0; background: transparent; font-family: 'Roboto', sans-serif; }}
+      .chat-container {{ display: flex; flex-direction: column; padding: 4px 8px; }}
+      .chat-bubble {{
+        padding: 8px 14px; margin: 0; border-radius: 14px; max-width: 78%;
+        font-size: 15px; line-height: 1.4; word-wrap: break-word;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      }}
+      .user {{ background-color: #dcf8c6; align-self: flex-end; text-align: right; }}
+      .bot {{ background-color: #ffffff; align-self: flex-start; text-align: left; }}
+      b {{ font-weight: 500; }}
+    </style></head>
+    <body><div class="chat-container"><div class="chat-bubble {role}">
+    <b>{name}:</b> {msg['content']}</div></div></body></html>
+    """
+    components.html(bubble_html, height=height, scrolling=False)
+
+# --- Input ---
+user_input = st.chat_input("Type your message here...")
+
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.spinner("Neha type kar rahi hai... 💭"):
+        reply = generate_reply(st.session_state.memory, user_input)
+
+    # Append text message
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+    save_memory(st.session_state.memory)
+
+    # --- NEW: Convert reply to speech ---
+    try:
+        tts = gTTS(text=reply, lang="hi", slow=False)
+        audio_bytes = BytesIO()
+        tts.write_to_fp(audio_bytes)
+        st.audio(audio_bytes.getvalue(), format="audio/mp3", autoplay=True)
+    except Exception as e:
+        st.warning(f"Speech playback issue: {e}")
+
+    st.rerun()
