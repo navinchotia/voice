@@ -245,7 +245,7 @@ if user_input:
         st.warning(f"Speech output error: {e}")
 
 
-    st.rerun()
+   # -- st.rerun()
 
 
 
