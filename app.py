@@ -222,7 +222,7 @@ for msg in st.session_state.messages:
     # Add Hindi speech for Neha’s replies
     if role == "bot":
         try:
-            tts = gTTS(text=msg["content"], lang="hi", slow=False)
+            tts = gTTS(text=msg["content"], lang="hi", tld='co.in', slow=False)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
                 tts.save(fp.name)
                 audio_bytes = open(fp.name, "rb").read()
@@ -248,3 +248,4 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
