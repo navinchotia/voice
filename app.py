@@ -246,12 +246,14 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("Neha type kar rahi hai... 💭"):
         reply = generate_reply(st.session_state.memory, user_input)
-# Clean reply if model includes "Neha:" itself
+    # Clean reply if model includes "Neha:" itself
 if reply.strip().lower().startswith("neha:"):
     reply = reply.split(":", 1)[1].strip()
+
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
 
 
