@@ -244,7 +244,7 @@ user_input = st.chat_input("Type your message here...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.spinner("Neha type kar rahi hai... 💭"):
+with st.spinner("Neha type kar rahi hai... 💭"):
     reply = generate_reply(st.session_state.memory, user_input)
 
 # Clean reply if model includes "Neha:" itself
@@ -254,6 +254,7 @@ if reply.strip().lower().startswith("neha:"):
 st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
 
 
 
