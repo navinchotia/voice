@@ -228,19 +228,23 @@ if user_input:
     save_memory(st.session_state.memory)
 
     # --- Hindi Speech Output using gTTS ---
-    from gtts import gTTS
+
+from gtts import gTTS
 import tempfile
-import streamlit as st
 
-response_text = "नमस्ते! मैं नेहा हूँ।"
+try:
+    # Convert the assistant's latest reply to Hindi speech
+    tts = gTTS(text=reply, lang='hi')
 
-# Convert to speech
-tts = gTTS(text=response_text, lang='hi')
+    # Save temporarily and play
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+        tts.save(fp.name)
+        st.audio(fp.name, format='audio/mp3')
 
-# Save temporarily
-with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-    tts.save(fp.name)
-    st.audio(fp.name, format='audio/mp3')
+except Exception as e:
+    st.warning(f"Speech output error: {e}")
+
 
     st.rerun()
+
 
