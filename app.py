@@ -10,6 +10,7 @@ from gtts import gTTS
 from io import BytesIO
 import tempfile
 import base64
+import hashlib
 
 # -----------------------------
 # CONFIGURATION
@@ -19,14 +20,31 @@ SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "YOUR_SERPER_API_KEY"
 genai.configure(api_key=GEMINI_API_KEY)
 
 BOT_NAME = "Neha"
-MEMORY_FILE = "user_memory.json"
+MEMORY_DIR = "user_memories"
+os.makedirs(MEMORY_DIR, exist_ok=True)
 
 # -----------------------------
-# MEMORY FUNCTIONS
+# SESSION-BASED MEMORY FUNCTIONS
 # -----------------------------
+def get_user_id():
+    """Create a unique ID for each user/session."""
+    session_id = st.session_state.get("session_id")
+    if not session_id:
+        # hash based on browser info + time to keep unique
+        raw = str(st.session_state) + str(datetime.now())
+        session_id = hashlib.md5(raw.encode()).hexdigest()[:10]
+        st.session_state.session_id = session_id
+    return session_id
+
+def get_memory_file():
+    """Each user has their own JSON memory file."""
+    user_id = get_user_id()
+    return os.path.join(MEMORY_DIR, f"{user_id}.json")
+
 def load_memory():
-    if os.path.exists(MEMORY_FILE):
-        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+    mem_file = get_memory_file()
+    if os.path.exists(mem_file):
+        with open(mem_file, "r", encoding="utf-8") as f:
             return json.load(f)
     return {
         "user_name": None,
@@ -37,9 +55,13 @@ def load_memory():
     }
 
 def save_memory(memory):
-    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+    mem_file = get_memory_file()
+    with open(mem_file, "w", encoding="utf-8") as f:
         json.dump(memory, f, ensure_ascii=False, indent=2)
 
+# -----------------------------
+# OTHER FUNCTIONS (unchanged)
+# -----------------------------
 def remember_user_info(memory, user_input):
     text = user_input.lower()
     for phrase in ["mera naam", "i am ", "this is ", "my name is "]:
@@ -56,9 +78,6 @@ def remember_user_info(memory, user_input):
         memory["gender"] = "female"
     save_memory(memory)
 
-# -----------------------------
-# TIME FUNCTION
-# -----------------------------
 def get_now(memory):
     tz_name = memory.get("timezone", "Asia/Kolkata")
     try:
@@ -67,9 +86,6 @@ def get_now(memory):
         tz = pytz.timezone("Asia/Kolkata")
     return datetime.now(tz).strftime("%A, %d %B %Y %I:%M %p")
 
-# -----------------------------
-# WEB SEARCH
-# -----------------------------
 def web_search(query):
     if not SERPER_API_KEY:
         return "Live search unavailable."
@@ -86,9 +102,6 @@ def web_search(query):
     except Exception as e:
         return f"Search failed: {e}"
 
-# -----------------------------
-# PROMPTS
-# -----------------------------
 def summarize_profile(memory):
     parts = []
     if memory.get("user_name"):
@@ -116,9 +129,6 @@ def build_system_prompt(memory):
         f"{summarize_profile(memory)} {gender_style}"
     )
 
-# -----------------------------
-# MEMORY SUMMARIZATION
-# -----------------------------
 def summarize_old_memory(memory):
     if len(memory.get("chat_history", [])) < 10:
         return memory
@@ -139,9 +149,6 @@ def summarize_old_memory(memory):
         print(f"[Memory summarization error: {e}]")
     return memory
 
-# -----------------------------
-# GENERATE REPLY
-# -----------------------------
 def generate_reply(memory, user_input):
     if not user_input.strip():
         return "Kuch toh bolo! 😄"
@@ -181,7 +188,7 @@ st.markdown("""
 
 st.title("💬 Neha – Your Hinglish AI Friend by Hindi Hour")
 
-# --- Memory initialization ---
+# --- Memory initialization per user ---
 if "memory" not in st.session_state:
     st.session_state.memory = load_memory()
 
@@ -195,7 +202,6 @@ for msg in st.session_state.messages:
     role = "user" if msg["role"] == "user" else "bot"
     name = "You" if role == "user" else "Neha"
 
-    # Chat bubble
     bubble_html = f"""
     <div style='
         background-color: {"#dcf8c6" if role=="user" else "#ffffff"};
