@@ -5,9 +5,8 @@ import json
 from datetime import datetime
 import pytz
 import requests
-import random
 import streamlit.components.v1 as components
-from gtts import gTTS  # <-- Added for speech
+from gtts import gTTS
 from io import BytesIO
 
 # -----------------------------
@@ -225,16 +224,16 @@ if user_input:
     with st.spinner("Neha type kar rahi hai... 💭"):
         reply = generate_reply(st.session_state.memory, user_input)
 
-    # Append text message
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
 
-    # --- NEW: Convert reply to speech ---
+    # --- Hindi Speech Output using gTTS ---
     try:
         tts = gTTS(text=reply, lang="hi", slow=False)
-        audio_bytes = BytesIO()
-        tts.write_to_fp(audio_bytes)
-        st.audio(audio_bytes.getvalue(), format="audio/mp3", autoplay=True)
+        audio_buffer = BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+        st.audio(audio_buffer.read(), format="audio/mp3", autoplay=True)
     except Exception as e:
         st.warning(f"Speech playback issue: {e}")
 
