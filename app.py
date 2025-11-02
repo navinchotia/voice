@@ -1,4 +1,3 @@
-
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -12,6 +11,7 @@ from io import BytesIO
 import tempfile
 import base64
 import hashlib
+import re  # ✅ added for emoji removal
 
 # -----------------------------
 # CONFIGURATION
@@ -31,7 +31,6 @@ def get_user_id():
     """Create a unique ID for each user/session."""
     session_id = st.session_state.get("session_id")
     if not session_id:
-        # hash based on browser info + time to keep unique
         raw = str(st.session_state) + str(datetime.now())
         session_id = hashlib.md5(raw.encode()).hexdigest()[:10]
         st.session_state.session_id = session_id
@@ -61,7 +60,7 @@ def save_memory(memory):
         json.dump(memory, f, ensure_ascii=False, indent=2)
 
 # -----------------------------
-# OTHER FUNCTIONS (unchanged)
+# OTHER FUNCTIONS
 # -----------------------------
 def remember_user_info(memory, user_input):
     text = user_input.lower()
@@ -120,7 +119,7 @@ def build_system_prompt(memory):
         gender_style = "User female hai, tone thoda formal and warm rakho."
     return (
         f"Tum ek friendly female Hinglish chatbot ho jiska naam {BOT_NAME} hai. "
-        "Tumhara tone ek 30 saal ki mature ladki jaisa hai – modern, warm lekin short baat karti ho. "
+        "Tumhara tone ek 30 saal ki ladki jaisa hai – modern, warm lekin short baat karti ho. "
         "Tum Delhi me rahti ho. Respond according to Delhi time zone. "
         "Don't show you are a chatbot, assume imaginary personality of any random female with common interests, life profile etc. "
         "Simple Hindi aur English mix mein baat karo. Don't use words like - yaar, mast, chill, vibe etc. frequently. "
@@ -151,63 +150,27 @@ def summarize_old_memory(memory):
     return memory
 
 def generate_reply(memory, user_input):
-    """Generate a reply with Gemini, then transliterate to Roman Hinglish using Gemini."""
     if not user_input.strip():
         return "Kuch toh bolo! 😄"
-
-    # remember simple facts
     remember_user_info(memory, user_input)
-
-    # quick live-search handling
     if any(w in user_input.lower() for w in ["news", "weather", "price", "rate", "update"]):
         info = web_search(user_input)
         return f"Mujhe live search se pata chala: {info}"
-
-    # build context (last N exchanges)
     context = "\n".join(
         [f"You: {c['user']}\n{BOT_NAME}: {c['bot']}" for c in memory.get("chat_history", [])[-8:]]
     )
-    prompt = f"{build_system_prompt(memory)}\n\nConversation so far:\n{context}\n\nYou: {user_input}\n{BOT_NAME}:"
-
-    # Generate response (Gemini)
+    prompt = f"{build_system_prompt(memory)}\n\nConversation:\n{context}\n\nYou: {user_input}\n{BOT_NAME}:"
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
         result = model.generate_content(prompt)
-        reply_raw = (result.text or "").strip()
+        reply = result.text.strip()
     except Exception as e:
-        reply_raw = f"Oops! Thoda issue aaya: {e}"
-
-    # If reply is empty, fallback
-    if not reply_raw:
-        reply_raw = "Sorry, kuch samajh nahi aaya. Thoda aur batao."
-
-    # --- Transliteration step: ask Gemini to convert to natural Roman Hinglish ---
-    # Keep this short & explicit so output is predictable.
-    try:
-        translit_prompt = (
-            "Transliterate the following Hindi (Devanagari) and mixed Hindi-English text into "
-            "natural, readable Roman Hinglish (use simple spelling, preserve English words, "
-            "do NOT use diacritics). Output only the transliterated text without extra explanation.\n\n"
-            f"Text:\n{reply_raw}\n\nOutput:"
-        )
-        translit_result = model.generate_content(translit_prompt)
-        reply_translit = (translit_result.text or "").strip()
-        # If transliteration returned something empty, keep original reply_raw
-        if not reply_translit:
-            reply_translit = reply_raw
-    except Exception:
-        # If transliteration fails for any reason, fallback to original reply
-        reply_translit = reply_raw
-
-    # Save chat to memory using transliterated reply (so UI/TTS sees Roman Hinglish)
-    memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply_translit})
-    # Summarize older memory if needed
+        reply = f"Oops! Thoda issue aaya: {e}"
+    memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply})
     if len(memory["chat_history"]) % 20 == 0:
         summarize_old_memory(memory)
     save_memory(memory)
-
-    return reply_translit
-
+    return reply
 
 # -----------------------------
 # STREAMLIT UI
@@ -255,10 +218,12 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
-    # Add Hindi speech for Neha’s replies
+    # --- Add Hindi speech for Neha’s replies ---
     if role == "bot":
         try:
-            tts = gTTS(text=msg["content"], lang="hi", tld='co.in', slow=False)
+            # ✅ remove emojis/special characters from speech
+            clean_text = re.sub(r'[^\w\s,?.!]', '', msg["content"])
+            tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
                 tts.save(fp.name)
                 audio_bytes = open(fp.name, "rb").read()
@@ -284,5 +249,3 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
-
-
