@@ -217,6 +217,7 @@ for msg in st.session_state.messages:
     components.html(bubble_html, height=height, scrolling=False)
 
 # --- Input ---
+# --- Input ---
 user_input = st.chat_input("Type your message here...")
 
 if user_input:
@@ -228,23 +229,23 @@ if user_input:
     save_memory(st.session_state.memory)
 
     # --- Hindi Speech Output using gTTS ---
+    from gtts import gTTS
+    import tempfile
 
-from gtts import gTTS
-import tempfile
+    try:
+        # Convert the assistant's reply to Hindi speech
+        tts = gTTS(text=reply, lang='hi')
 
-try:
-    # Convert the assistant's latest reply to Hindi speech
-    tts = gTTS(text=reply, lang='hi')
+        # Save temporarily and play
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+            tts.save(fp.name)
+            st.audio(fp.name, format='audio/mp3')
 
-    # Save temporarily and play
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-        tts.save(fp.name)
-        st.audio(fp.name, format='audio/mp3')
-
-except Exception as e:
-    st.warning(f"Speech output error: {e}")
+    except Exception as e:
+        st.warning(f"Speech output error: {e}")
 
 
     st.rerun()
+
 
 
