@@ -1,3 +1,4 @@
+
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -258,30 +259,16 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
-   # --- Add Hindi speech for Neha’s replies (using ElevenLabs) ---
+   # --- Add Hindi speech for Neha’s replies ---
     if role == "bot":
         try:
-            import re, requests, base64, os
-            # ✅ Clean up emojis or stray characters
-            clean_text = re.sub(r"[^\w\s,.'!?-]", "", msg["content"])
-
-            api_key = os.getenv("ELEVEN_API_KEY") or "YOUR_ELEVEN_API_KEY"
-            voice_id = "mfMM3ijQgz8QtMeKifko"  # e.g., "21m00Tcm4TlvDq8ikWAM"
-            url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-
-            payload = {
-                "text": clean_text,
-                "model_id": "eleven_multilingual_v2",
-                "voice_settings": {"stability": 0.4, "similarity_boost": 0.85}
-            }
-            headers = {
-                "xi-api-key": api_key,
-                "Content-Type": "application/json"
-            }
-
-            response = requests.post(url, headers=headers, json=payload, timeout=20)
-            if response.status_code == 200:
-                audio_base64 = base64.b64encode(response.content).decode()
+            # ✅ remove emojis/special characters from speech
+            clean_text = re.sub(r'[^\w\s,?.!]', '', msg["content"])
+            tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                tts.save(fp.name)
+                audio_bytes = open(fp.name, "rb").read()
+                audio_base64 = base64.b64encode(audio_bytes).decode()
                 st.markdown(
                     f"""
                     <audio controls style='margin-top:-6px;'>
@@ -290,12 +277,8 @@ for msg in st.session_state.messages:
                     """,
                     unsafe_allow_html=True
                 )
-            else:
-                st.warning(f"Speech issue: {response.text}")
-
         except Exception as e:
-            st.warning(f"Speech generation failed: {e}")
-
+            st.warning(f"Speech issue: {e}")
 
 # --- Input ---
 user_input = st.chat_input("Type your message here...")
@@ -313,8 +296,6 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
-
-
 
 
 
