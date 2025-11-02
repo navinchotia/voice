@@ -8,6 +8,8 @@ import requests
 import streamlit.components.v1 as components
 from gtts import gTTS
 from io import BytesIO
+import tempfile
+import base64
 
 # -----------------------------
 # CONFIGURATION
@@ -183,40 +185,52 @@ st.title("💬 Neha – Your Hinglish AI Friend by Hindi Hour")
 if "memory" not in st.session_state:
     st.session_state.memory = load_memory()
 
-# --- Chat Display ---
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Hi! Main Neha hoon 😊 Main Hinglish me baat kar sakti hun!"}
     ]
 
-# --- Render Chat Bubbles ---
+# --- Display Chat with Text + Audio ---
 for msg in st.session_state.messages:
     role = "user" if msg["role"] == "user" else "bot"
     name = "You" if role == "user" else "Neha"
 
-    msg_length = len(msg["content"])
-    height = min(300, max(90, 60 + msg_length // 2))
-
+    # Chat bubble
     bubble_html = f"""
-    <html><head>
-    <style>
-      body {{ margin: 0; padding: 0; background: transparent; font-family: 'Roboto', sans-serif; }}
-      .chat-container {{ display: flex; flex-direction: column; padding: 4px 8px; }}
-      .chat-bubble {{
-        padding: 8px 14px; margin: 0; border-radius: 14px; max-width: 78%;
-        font-size: 15px; line-height: 1.4; word-wrap: break-word;
+    <div style='
+        background-color: {"#dcf8c6" if role=="user" else "#ffffff"};
+        padding: 8px 14px;
+        border-radius: 14px;
+        max-width: 78%;
+        margin: 4px 0;
+        font-size: 15px;
+        line-height: 1.4;
         box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-      }}
-      .user {{ background-color: #dcf8c6; align-self: flex-end; text-align: right; }}
-      .bot {{ background-color: #ffffff; align-self: flex-start; text-align: left; }}
-      b {{ font-weight: 500; }}
-    </style></head>
-    <body><div class="chat-container"><div class="chat-bubble {role}">
-    <b>{name}:</b> {msg['content']}</div></div></body></html>
+    '>
+        <b>{name}:</b> {msg["content"]}
+    </div>
     """
-    components.html(bubble_html, height=height, scrolling=False)
+    st.markdown(bubble_html, unsafe_allow_html=True)
 
-# --- Input ---
+    # Add Hindi speech for Neha’s replies
+    if role == "bot":
+        try:
+            tts = gTTS(text=msg["content"], lang="hi", slow=False)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                tts.save(fp.name)
+                audio_bytes = open(fp.name, "rb").read()
+                audio_base64 = base64.b64encode(audio_bytes).decode()
+                st.markdown(
+                    f"""
+                    <audio controls style='margin-top:-6px;'>
+                        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                    </audio>
+                    """,
+                    unsafe_allow_html=True
+                )
+        except Exception as e:
+            st.warning(f"Speech issue: {e}")
+
 # --- Input ---
 user_input = st.chat_input("Type your message here...")
 
@@ -224,19 +238,6 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("Neha type kar rahi hai... 💭"):
         reply = generate_reply(st.session_state.memory, user_input)
-
-    # --- Text Output ---
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
-
-    # --- Audio Output (Hindi speech using gTTS) ---
-    try:
-        from gtts import gTTS
-        import tempfile
-        tts = gTTS(text=reply, lang='hi', slow=False)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-            tts.save(fp.name)
-            st.audio(fp.name, format='audio/mp3', start_time=0)  # ✅ This plays the audio
-    except Exception as e:
-        st.warning(f"Speech output error: {e}")
-
+    st.rerun()
