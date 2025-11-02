@@ -172,6 +172,46 @@ def generate_reply(memory, user_input):
     save_memory(memory)
     return reply
 
+# ---------------------
+# Elevenlabs Setp
+# ---------------------
+def elevenlabs_tts(text):
+    """Generate natural speech from text using ElevenLabs."""
+    import requests, base64, os
+
+    api_key = os.getenv("ELEVEN_API_KEY") or "YOUR_ELEVEN_API_KEY"
+    voice_id = "mfMM3ijQgz8QtMeKifko"  # e.g., "21m00Tcm4TlvDq8ikWAM"
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+
+    # Clean up emojis & smileys before sending
+    import re
+    clean_text = re.sub(r"[^\w\s,.'!?-]", "", text)
+
+    payload = {
+        "text": clean_text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {"stability": 0.4, "similarity_boost": 0.85}
+    }
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        if response.status_code == 200:
+            audio_base64 = base64.b64encode(response.content).decode()
+            return f"""
+            <audio controls style='margin-top:-6px;'>
+                <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+            </audio>
+            """
+        else:
+            return f"<p style='color:red;'>Speech error: {response.text}</p>"
+    except Exception as e:
+        return f"<p style='color:red;'>Speech generation failed: {e}</p>"
+
+
 # -----------------------------
 # STREAMLIT UI
 # -----------------------------
@@ -194,7 +234,7 @@ if "memory" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hi! Main Neha hoon 😊 Main Hinglish me baat kar sakti hun!"}
+        {"role": "assistant", "content": "Hi! Main Neha hoon. 😊 Main Hinglish me baat kar sakti hun!"}
     ]
 
 # --- Display Chat with Text + Audio ---
@@ -218,7 +258,7 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
-    # --- Add Hindi speech for Neha’s replies ---
+   # --- Add Hindi speech for Neha’s replies ---
     if role == "bot":
         try:
             # ✅ remove emojis/special characters from speech
@@ -255,6 +295,7 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
 
