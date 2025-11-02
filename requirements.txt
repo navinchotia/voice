@@ -1,5 +1,6 @@
 streamlit
-openai>=1.40.0
-pytz
-requests
+openai
+google-cloud-speech
 gtts
+SpeechRecognition
+pyaudio
