@@ -151,27 +151,63 @@ def summarize_old_memory(memory):
     return memory
 
 def generate_reply(memory, user_input):
+    """Generate a reply with Gemini, then transliterate to Roman Hinglish using Gemini."""
     if not user_input.strip():
         return "Kuch toh bolo! 😄"
+
+    # remember simple facts
     remember_user_info(memory, user_input)
+
+    # quick live-search handling
     if any(w in user_input.lower() for w in ["news", "weather", "price", "rate", "update"]):
         info = web_search(user_input)
         return f"Mujhe live search se pata chala: {info}"
+
+    # build context (last N exchanges)
     context = "\n".join(
         [f"You: {c['user']}\n{BOT_NAME}: {c['bot']}" for c in memory.get("chat_history", [])[-8:]]
     )
-    prompt = f"{build_system_prompt(memory)}\n\nConversation:\n{context}\n\nYou: {user_input}\n{BOT_NAME}:"
+    prompt = f"{build_system_prompt(memory)}\n\nConversation so far:\n{context}\n\nYou: {user_input}\n{BOT_NAME}:"
+
+    # Generate response (Gemini)
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
         result = model.generate_content(prompt)
-        reply = result.text.strip()
+        reply_raw = (result.text or "").strip()
     except Exception as e:
-        reply = f"Oops! Thoda issue aaya: {e}"
-    memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply})
+        reply_raw = f"Oops! Thoda issue aaya: {e}"
+
+    # If reply is empty, fallback
+    if not reply_raw:
+        reply_raw = "Sorry, kuch samajh nahi aaya. Thoda aur batao."
+
+    # --- Transliteration step: ask Gemini to convert to natural Roman Hinglish ---
+    # Keep this short & explicit so output is predictable.
+    try:
+        translit_prompt = (
+            "Transliterate the following Hindi (Devanagari) and mixed Hindi-English text into "
+            "natural, readable Roman Hinglish (use simple spelling, preserve English words, "
+            "do NOT use diacritics). Output only the transliterated text without extra explanation.\n\n"
+            f"Text:\n{reply_raw}\n\nOutput:"
+        )
+        translit_result = model.generate_content(translit_prompt)
+        reply_translit = (translit_result.text or "").strip()
+        # If transliteration returned something empty, keep original reply_raw
+        if not reply_translit:
+            reply_translit = reply_raw
+    except Exception:
+        # If transliteration fails for any reason, fallback to original reply
+        reply_translit = reply_raw
+
+    # Save chat to memory using transliterated reply (so UI/TTS sees Roman Hinglish)
+    memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply_translit})
+    # Summarize older memory if needed
     if len(memory["chat_history"]) % 20 == 0:
         summarize_old_memory(memory)
     save_memory(memory)
-    return reply
+
+    return reply_translit
+
 
 # -----------------------------
 # STREAMLIT UI
@@ -248,4 +284,5 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
 
