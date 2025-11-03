@@ -187,7 +187,17 @@ st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 """, unsafe_allow_html=True)
 
-st.title("💬 Neha – Your Hinglish AI Friend by Hindi Hour")
+st.markdown("""
+<h1 style="
+    text-align:center;
+    font-family:'Roboto', sans-serif;
+    font-weight:500;
+    font-size:16px;
+    margin-top:-10px;
+">
+💬 Neha – Your Hinglish AI Friend by Hindi Hour
+</h1>
+""", unsafe_allow_html=True)
 
 # --- Memory initialization per user ---
 if "memory" not in st.session_state:
@@ -256,4 +266,5 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
