@@ -233,7 +233,7 @@ for msg in st.session_state.messages:
     if role == "bot":
         try:
             # ✅ remove emojis/special characters from speech
-            clean_text = re.sub(r'[^\w\s,?.!]', '', msg["content"])
+            clean_text = re.sub(r'[^\w\s,-?.!]', '', msg["content"])
             tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
                 tts.save(fp.name)
@@ -266,6 +266,7 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
 
