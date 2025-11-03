@@ -219,35 +219,26 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
- # --- Add Hindi speech for Neha’s replies ---
-if role == "bot":
-    try:
-        # ✅ Remove emojis/special characters from speech
-        clean_text = re.sub(r'[^\w\s,?.!]', '', msg["content"])
-        tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-            tts.save(fp.name)
-            audio_bytes = open(fp.name, "rb").read()
-            audio_base64 = base64.b64encode(audio_bytes).decode()
-            unique_id = hashlib.md5(fp.name.encode()).hexdigest()[:8]
-
-            # ✅ HTML audio with 1.15x playback speed
-            st.markdown(
-                f"""
-                <audio id="audio_{unique_id}" controls style='margin-top:-6px;'>
-                    <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                </audio>
-                <script>
-                    var audio = document.getElementById("audio_{unique_id}");
-                    if (audio) {{
-                        audio.playbackRate = 1.15;
-                    }}
-                </script>
-                """,
-                unsafe_allow_html=True
-            )
-    except Exception as e:
-        st.warning(f"Speech issue: {e}")
+   # --- Add Hindi speech for Neha’s replies ---
+    if role == "bot":
+        try:
+            # ✅ remove emojis/special characters from speech
+            clean_text = re.sub(r'[^\w\s,?.!]', '', msg["content"])
+            tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                tts.save(fp.name)
+                audio_bytes = open(fp.name, "rb").read()
+                audio_base64 = base64.b64encode(audio_bytes).decode()
+                st.markdown(
+                    f"""
+                    <audio controls style='margin-top:-6px;'>
+                        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                    </audio>
+                    """,
+                    unsafe_allow_html=True
+                )
+        except Exception as e:
+            st.warning(f"Speech issue: {e}")
 
 # --- Input ---
 user_input = st.chat_input("Type your message here...")
@@ -265,16 +256,3 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
-
-
-
-
-
-
-
-
-
-
-
-
-
