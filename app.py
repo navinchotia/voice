@@ -13,12 +13,6 @@ import tempfile
 import base64
 import hashlib
 import re  # ✅ added for emoji removal
-from pydub import AudioSegment
-import io
-os.system("apt-get install -y ffmpeg > /dev/null 2>&1")
-from pydub.utils import which
-AudioSegment.converter = which("ffmpeg") or "/usr/bin/ffmpeg"
-AudioSegment.ffprobe = which("ffprobe") or "/usr/bin/ffprobe"
 
 # -----------------------------
 # CONFIGURATION
@@ -271,6 +265,7 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
 
