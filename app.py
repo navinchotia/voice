@@ -192,7 +192,7 @@ st.markdown("""
     text-align:center;
     font-family:'Roboto', sans-serif;
     font-weight:500;
-    font-size:16px;
+    font-size:22px;
     margin-top:-10px;
 ">
 💬 Neha – Your Hinglish AI Friend by Hindi Hour
@@ -266,5 +266,6 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
