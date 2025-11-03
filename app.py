@@ -205,7 +205,7 @@ if "memory" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Namaste. Main Neha hoon. 😊 Main Hinglish me baat kar sakti hun!"}
+        {"role": "assistant", "content": "Namaste. Main Neha hun. 😊 Main Hinglish me baat kar sakti hun!"}
     ]
 
 # --- Display Chat with Text + Audio ---
@@ -266,6 +266,7 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
 
