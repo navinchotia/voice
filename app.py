@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -13,7 +11,8 @@ from io import BytesIO
 import tempfile
 import base64
 import hashlib
-import re  # ✅ added for emoji removal
+import re
+from googletrans import Translator  # ✅ added for transliteration
 
 # -----------------------------
 # CONFIGURATION
@@ -26,11 +25,12 @@ BOT_NAME = "Neha"
 MEMORY_DIR = "user_memories"
 os.makedirs(MEMORY_DIR, exist_ok=True)
 
+translator = Translator()  # ✅ initialize once
+
 # -----------------------------
 # SESSION-BASED MEMORY FUNCTIONS
 # -----------------------------
 def get_user_id():
-    """Create a unique ID for each user/session."""
     session_id = st.session_state.get("session_id")
     if not session_id:
         raw = str(st.session_state) + str(datetime.now())
@@ -39,7 +39,6 @@ def get_user_id():
     return session_id
 
 def get_memory_file():
-    """Each user has their own JSON memory file."""
     user_id = get_user_id()
     return os.path.join(MEMORY_DIR, f"{user_id}.json")
 
@@ -152,6 +151,17 @@ def summarize_old_memory(memory):
         print(f"[Memory summarization error: {e}]")
     return memory
 
+# ✅ transliteration helper
+def transliterate_to_roman(text):
+    try:
+        # detect if contains Devanagari
+        if re.search(r'[\u0900-\u097F]', text):
+            result = translator.translate(text, src='hi', dest='en')
+            return result.text
+        return text
+    except Exception:
+        return text
+
 def generate_reply(memory, user_input):
     if not user_input.strip():
         return "Kuch toh bolo! 😄"
@@ -167,6 +177,8 @@ def generate_reply(memory, user_input):
         model = genai.GenerativeModel("gemini-2.5-flash")
         result = model.generate_content(prompt)
         reply = result.text.strip()
+        # ✅ ensure transliteration to Roman
+        reply = transliterate_to_roman(reply)
     except Exception as e:
         reply = f"Oops! Thoda issue aaya: {e}"
     memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply})
@@ -201,7 +213,6 @@ st.markdown("""
 </h1>
 """, unsafe_allow_html=True)
 
-# --- Memory initialization per user ---
 if "memory" not in st.session_state:
     st.session_state.memory = load_memory()
 
@@ -210,11 +221,9 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Namaste. Main Neha hun. 😊 Main Hinglish me baat kar sakti hun!"}
     ]
 
-# --- Display Chat with Text + Audio ---
 for msg in st.session_state.messages:
     role = "user" if msg["role"] == "user" else "bot"
     name = "You" if role == "user" else "Neha"
-
     bubble_html = f"""
     <div style='
         background-color: {"#dcf8c6" if role=="user" else "#ffffff"};
@@ -231,10 +240,8 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
-   # --- Add Hindi speech for Neha’s replies ---
     if role == "bot":
         try:
-            # ✅ remove emojis/special characters from speech
             clean_text = re.sub(r'[^\w\s,-?.!]', '', msg["content"])
             tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
@@ -252,19 +259,14 @@ for msg in st.session_state.messages:
         except Exception as e:
             st.warning(f"Speech issue: {e}")
 
-# --- Input ---
 user_input = st.chat_input("Type your message here...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("Neha type kar rahi hai... 💭"):
         reply = generate_reply(st.session_state.memory, user_input)
-
-    # Clean reply if model includes "Neha:" itself
     if reply and reply.strip().lower().startswith("neha:"):
         reply = reply.split(":", 1)[1].strip()
-
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
-
     st.rerun()
