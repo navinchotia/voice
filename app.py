@@ -225,32 +225,6 @@ def generate_reply(memory, user_input):
     return reply
 
 # -----------------------------
-# USER NAME COLLECTION
-# -----------------------------
-if "user_name" not in st.session_state:
-    st.session_state.user_name = None
-
-if not st.session_state.user_name:
-    st.session_state.user_name = st.text_input("👋 Hi! What's your name?")
-    if st.session_state.user_name:
-        st.success(f"Welcome {st.session_state.user_name}! Let's chat with Neha 😊")
-
-        # Save to local SQLite DB
-        save_user_to_db(st.session_state.user_name, get_user_id())
-
-        # Also store in memory
-        st.session_state.memory["user_name"] = st.session_state.user_name
-        save_memory(st.session_state.memory)
-
-        st.rerun()
-else:
-    st.write(f"👋 Welcome back, {st.session_state.user_name}!")
-
-
-# -----------------------------
-# STREAMLIT UI
-# -----------------------------
-# -----------------------------
 # STREAMLIT UI
 # -----------------------------
 st.set_page_config(page_title="Neha – Your Hinglish AI Friend", page_icon="💬")
@@ -284,12 +258,13 @@ memory = st.session_state.memory
 
 # ✅ Step 1: Ask for user name before chat starts
 if not memory.get("user_name"):
-    st.markdown("### 👋 Namaste! Apna naam bataiye:")
+    
     name = st.text_input("Your Name:")
     if st.button("Start Chat"):
         if name.strip():
             memory["user_name"] = name.strip().title()
             save_memory(memory)
+            save_user_to_db(memory["user_name"], get_user_id())  # ✅ DB save added
             st.success(f"Nice to meet you, {memory['user_name']}! 😊")
             st.rerun()
         else:
@@ -351,4 +326,5 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
