@@ -14,6 +14,9 @@ import hashlib
 import re
 from googletrans import Translator  # ✅ added for transliteration
 import sqlite3
+import uuid
+import socket
+import datetime as dt
 
 # -----------------------------
 # CONFIGURATION
@@ -35,34 +38,50 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT,
             name TEXT,
-            session_id TEXT
+            session_id TEXT,
+            ip_address TEXT,
+            location TEXT
         )
     """)
     conn.commit()
     conn.close()
 
-def save_user_to_db(name, session_id):
+def save_user_to_db(name, session_id, ip_address, location):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO users (timestamp, name, session_id) VALUES (?, ?, ?)",
-              (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id))
+    c.execute("INSERT INTO users (timestamp, name, session_id, ip_address, location) VALUES (?, ?, ?, ?, ?)",
+              (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id, ip_address, location))
     conn.commit()
     conn.close()
 
 def get_all_users():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT timestamp, name, session_id FROM users ORDER BY id DESC")
+    c.execute("SELECT timestamp, name, session_id, ip_address, location FROM users ORDER BY id DESC")
     data = c.fetchall()
     conn.close()
     return data
 
 init_db()
 
+# -----------------------------
+# IP + LOCATION HELPERS
+# -----------------------------
+def get_ip_location():
+    try:
+        ip = requests.get('https://api64.ipify.org?format=json', timeout=5).json()['ip']
+        loc_data = requests.get(f'https://ipapi.co/{ip}/json/', timeout=5).json()
+        location = f"{loc_data.get('city', 'Unknown')}, {loc_data.get('country_name', 'Unknown')}"
+        return ip, location
+    except Exception:
+        return "Unknown", "Unknown"
+
+# -----------------------------
+# GENERAL SETTINGS
+# -----------------------------
 BOT_NAME = "Neha"
 MEMORY_DIR = "user_memories"
 os.makedirs(MEMORY_DIR, exist_ok=True)
-
 translator = Translator()  # ✅ initialize once
 
 # -----------------------------
@@ -191,7 +210,6 @@ def summarize_old_memory(memory):
 # ✅ transliteration helper
 def transliterate_to_roman(text):
     try:
-        # detect if contains Devanagari
         if re.search(r'[\u0900-\u097F]', text):
             result = translator.translate(text, src='hi', dest='en')
             return result.text
@@ -214,7 +232,6 @@ def generate_reply(memory, user_input):
         model = genai.GenerativeModel("gemini-2.5-flash")
         result = model.generate_content(prompt)
         reply = result.text.strip()
-        # ✅ ensure transliteration to Roman
         reply = transliterate_to_roman(reply)
     except Exception as e:
         reply = f"Oops! Thoda issue aaya: {e}"
@@ -258,18 +275,18 @@ memory = st.session_state.memory
 
 # ✅ Step 1: Ask for user name before chat starts
 if not memory.get("user_name"):
-    
     name = st.text_input("Your Name:")
     if st.button("Start Chat"):
         if name.strip():
+            ip_address, location = get_ip_location()
             memory["user_name"] = name.strip().title()
             save_memory(memory)
-            save_user_to_db(memory["user_name"], get_user_id())  # ✅ DB save added
-            st.success(f"Nice to meet you, {memory['user_name']}! 😊")
+            save_user_to_db(memory["user_name"], get_user_id(), ip_address, location)  # ✅ DB save added
+            st.success(f"Nice to meet you, {memory['user_name']} from {location}! 😊")
             st.rerun()
         else:
             st.warning("Please enter your name to continue.")
-    st.stop()  # ✅ Stop execution here until name is given
+    st.stop()
 
 # ✅ Step 2: If name already stored, show chat UI
 if "messages" not in st.session_state:
@@ -326,6 +343,3 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
-
-
-
