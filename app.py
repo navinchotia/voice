@@ -274,7 +274,7 @@ if not memory.get("user_name"):
 # ✅ Step 2: If name already stored, show chat UI
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": f"Namaste {memory['user_name']}! 😊 Main Neha hun. Hinglish me baat karein?"}
+        {"role": "assistant", "content": f"Namaste {memory['user_name']}! 😊 Main Neha hun. Main Hinglish me baat kar sakti hun."}
     ]
 
 for msg in st.session_state.messages:
@@ -326,5 +326,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
