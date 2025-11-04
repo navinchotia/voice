@@ -34,7 +34,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS user (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT,
             name TEXT,
@@ -49,7 +49,7 @@ def init_db():
 def save_user_to_db(name, session_id, ip_address, location):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO users (timestamp, name, session_id, ip_address, location) VALUES (?, ?, ?, ?, ?)",
+    c.execute("INSERT INTO user (timestamp, name, session_id, ip_address, location) VALUES (?, ?, ?, ?, ?)",
               (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id, ip_address, location))
     conn.commit()
     conn.close()
@@ -57,7 +57,7 @@ def save_user_to_db(name, session_id, ip_address, location):
 def get_all_users():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT timestamp, name, session_id, ip_address, location FROM users ORDER BY id DESC")
+    c.execute("SELECT timestamp, name, session_id, ip_address, location FROM user ORDER BY id DESC")
     data = c.fetchall()
     conn.close()
     return data
@@ -343,3 +343,4 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
