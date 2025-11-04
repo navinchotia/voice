@@ -4,3 +4,4 @@ gtts
 pytz
 requests
 indic-transliteration==1.8.1
+googletrans==4.0.0-rc1
