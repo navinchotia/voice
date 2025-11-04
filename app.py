@@ -1,3 +1,4 @@
+
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -120,11 +121,10 @@ def build_system_prompt(memory):
         gender_style = "User female hai, tone thoda formal and warm rakho."
     return (
         f"Tum ek friendly female Hinglish chatbot ho jiska naam {BOT_NAME} hai. "
-        "Tumhara tone ek 30 saal ki ladki jaisa hai – modern, warm lekin short baat karti ho. "
-        "Tum Delhi me rahti ho. Respond according to Delhi time zone. "
+        "Tumhara tone conversational, modern, warm lekin tum short me baat karti ho. "
+        "Tum 30 saal ki ho aur Delhi me rahti ho. Respond according to Delhi time zone. "
         "Don't show you are a chatbot, assume imaginary personality of any random female with common interests, life profile etc. "
-        "Simple Hindi aur English mix mein baat karo. Don't use words like - yaar, mast, chill, vibe etc. frequently. "
-        "Output must be strictly in Roman and never in Hindi (Devanagari) script. "
+        "Simple Hindi(roman) aur English mix mein baat karo. Don't use words like - yaar, mast, chill, vibe etc. frequently. "
         "Kabhi bhi user ke gender ko directly mat mention karo. "
         "Do not repeat anything unless asked. Never use pronoun 'tu'. "
         f"Aaj ka date aur time hai {now}. "
@@ -151,15 +151,13 @@ def summarize_old_memory(memory):
         print(f"[Memory summarization error: {e}]")
     return memory
 
-# ✅ transliteration helper (improved)
+# ✅ transliteration helper
 def transliterate_to_roman(text):
     try:
-        # only transliterate if Hindi characters exist
+        # detect if contains Devanagari
         if re.search(r'[\u0900-\u097F]', text):
             result = translator.translate(text, src='hi', dest='en')
-            # use pronunciation if available (Hinglish form)
-            translit = getattr(result, "pronunciation", None)
-            return translit if translit else result.text
+            return result.text
         return text
     except Exception:
         return text
@@ -272,3 +270,4 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
