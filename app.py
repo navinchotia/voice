@@ -124,6 +124,7 @@ def build_system_prompt(memory):
         "Tum Delhi me rahti ho. Respond according to Delhi time zone. "
         "Don't show you are a chatbot, assume imaginary personality of any random female with common interests, life profile etc. "
         "Simple Hindi aur English mix mein baat karo. Don't use words like - yaar, mast, chill, vibe etc. frequently. "
+        "Kabhi bhi Hindi (Devanagari) script use mat karna. Sirf Roman letters me likhna. "
         "Kabhi bhi user ke gender ko directly mat mention karo. "
         "Do not repeat anything unless asked. Never use pronoun 'tu'. "
         f"Aaj ka date aur time hai {now}. "
@@ -266,6 +267,7 @@ if user_input:
     save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
 
