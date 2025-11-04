@@ -250,6 +250,9 @@ else:
 # -----------------------------
 # STREAMLIT UI
 # -----------------------------
+# -----------------------------
+# STREAMLIT UI
+# -----------------------------
 st.set_page_config(page_title="Neha – Your Hinglish AI Friend", page_icon="💬")
 
 st.markdown("""
@@ -273,12 +276,30 @@ st.markdown("""
 </h1>
 """, unsafe_allow_html=True)
 
+# ✅ Load memory
 if "memory" not in st.session_state:
     st.session_state.memory = load_memory()
 
+memory = st.session_state.memory
+
+# ✅ Step 1: Ask for user name before chat starts
+if not memory.get("user_name"):
+    st.markdown("### 👋 Namaste! Apna naam bataiye:")
+    name = st.text_input("Your Name:")
+    if st.button("Start Chat"):
+        if name.strip():
+            memory["user_name"] = name.strip().title()
+            save_memory(memory)
+            st.success(f"Nice to meet you, {memory['user_name']}! 😊")
+            st.rerun()
+        else:
+            st.warning("Please enter your name to continue.")
+    st.stop()  # ✅ Stop execution here until name is given
+
+# ✅ Step 2: If name already stored, show chat UI
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Namaste. Main Neha hun. 😊 Main Hinglish me baat kar sakti hun!"}
+        {"role": "assistant", "content": f"Namaste {memory['user_name']}! 😊 Main Neha hun. Hinglish me baat karein?"}
     ]
 
 for msg in st.session_state.messages:
@@ -324,12 +345,10 @@ user_input = st.chat_input("Type your message here...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("Neha type kar rahi hai... 💭"):
-        reply = generate_reply(st.session_state.memory, user_input)
+        reply = generate_reply(memory, user_input)
     if reply and reply.strip().lower().startswith("neha:"):
         reply = reply.split(":", 1)[1].strip()
     st.session_state.messages.append({"role": "assistant", "content": reply})
-    save_memory(st.session_state.memory)
+    save_memory(memory)
     st.rerun()
-
-
 
