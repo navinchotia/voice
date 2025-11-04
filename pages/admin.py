@@ -4,7 +4,7 @@ from datetime import datetime
 
 st.title("🧾 Neha Chatbot – User Database")
 
-conn = sqlite3.connect("users.db")
+conn = sqlite3.connect("userlog.db")
 c = conn.cursor()
 c.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC")
 rows = c.fetchall()
