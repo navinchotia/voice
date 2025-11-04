@@ -1,4 +1,3 @@
-
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -14,6 +13,7 @@ import base64
 import hashlib
 import re
 from googletrans import Translator  # ✅ added for transliteration
+import sqlite3
 
 # -----------------------------
 # CONFIGURATION
@@ -21,6 +21,47 @@ from googletrans import Translator  # ✅ added for transliteration
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or "YOUR_GEMINI_API_KEY"
 SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "YOUR_SERPER_API_KEY"
 genai.configure(api_key=GEMINI_API_KEY)
+
+# ---------------------
+# Database Setup
+# ---------------------
+
+# -----------------------------
+# LOCAL DATABASE FUNCTIONS
+# -----------------------------
+DB_PATH = "users.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            name TEXT,
+            session_id TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_user_to_db(name, session_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO users (timestamp, name, session_id) VALUES (?, ?, ?)",
+              (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id))
+    conn.commit()
+    conn.close()
+
+def get_all_users():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT timestamp, name, session_id FROM users ORDER BY id DESC")
+    data = c.fetchall()
+    conn.close()
+    return data
+init_db()
+
 
 BOT_NAME = "Neha"
 MEMORY_DIR = "user_memories"
@@ -188,6 +229,29 @@ def generate_reply(memory, user_input):
     return reply
 
 # -----------------------------
+# USER NAME COLLECTION
+# -----------------------------
+if "user_name" not in st.session_state:
+    st.session_state.user_name = None
+
+if not st.session_state.user_name:
+    st.session_state.user_name = st.text_input("👋 Hi! What's your name?")
+    if st.session_state.user_name:
+        st.success(f"Welcome {st.session_state.user_name}! Let's chat with Neha 😊")
+
+        # Save to local SQLite DB
+        save_user_to_db(st.session_state.user_name, get_user_id())
+
+        # Also store in memory
+        st.session_state.memory["user_name"] = st.session_state.user_name
+        save_memory(st.session_state.memory)
+
+        st.rerun()
+else:
+    st.write(f"👋 Welcome back, {st.session_state.user_name}!")
+
+
+# -----------------------------
 # STREAMLIT UI
 # -----------------------------
 st.set_page_config(page_title="Neha – Your Hinglish AI Friend", page_icon="💬")
@@ -270,4 +334,5 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
 
