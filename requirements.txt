@@ -3,6 +3,4 @@ google-generativeai
 gtts
 pytz
 requests
-
-
-
+indic-transliteration==1.8.1
