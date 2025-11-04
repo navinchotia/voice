@@ -22,10 +22,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or "YOUR_GEMINI_API_KEY"
 SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "YOUR_SERPER_API_KEY"
 genai.configure(api_key=GEMINI_API_KEY)
 
-# ---------------------
-# Database Setup
-# ---------------------
-
 # -----------------------------
 # LOCAL DATABASE FUNCTIONS
 # -----------------------------
@@ -60,8 +56,8 @@ def get_all_users():
     data = c.fetchall()
     conn.close()
     return data
-init_db()
 
+init_db()
 
 BOT_NAME = "Neha"
 MEMORY_DIR = "user_memories"
@@ -334,5 +330,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(st.session_state.memory)
     st.rerun()
+
 
 
