@@ -28,7 +28,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 # -----------------------------
 # LOCAL DATABASE FUNCTIONS
 # -----------------------------
-DB_PATH = "users.db"
+DB_PATH = "userlog.db"
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -343,4 +343,5 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
