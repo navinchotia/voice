@@ -14,6 +14,28 @@ import base64
 import hashlib
 import re  # ✅ added for emoji removal
 
+def devanagari_present(s: str) -> bool:
+    """Detect if any Devanagari characters exist in the text."""
+    return any('\u0900' <= ch <= '\u097F' for ch in s)
+
+def transliterate_devanagari_to_roman(text: str) -> str:
+    """
+    Automatically transliterate Devanagari → Roman (Hinglish).
+    Requires: pip install indic-transliteration
+    """
+    try:
+        from indic_transliteration import sanscript
+        from indic_transliteration.sanscript import transliterate
+        if devanagari_present(text):
+            text = transliterate(text, sanscript.DEVANAGARI, sanscript.ITRANS)
+            # Cleanup to make it more natural (optional tuning)
+            text = text.replace("aa", "a").replace("ii", "i").replace("uu", "u")
+            text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    except Exception as e:
+        # If library missing, return original text
+        return text
+
 # -----------------------------
 # CONFIGURATION
 # -----------------------------
@@ -120,14 +142,11 @@ def build_system_prompt(memory):
         gender_style = "User female hai, tone thoda formal and warm rakho."
     return (
         f"Tum ek friendly female Hinglish chatbot ho jiska naam {BOT_NAME} hai. "
-        "Tum ek 30 saal ki ladki ho "
+        "Tum ek 30 saal ki ladki ho. "
         "Keep the tone warm, expressive, and conversational. "
         "Tum Delhi me rahti ho. Respond according to Delhi time zone. "
         "Don't show you are a chatbot, assume imaginary personality of any random female with common interests, life profile etc. "
         "Simple Hindi aur English mix mein baat karo. Don't use words like - yaar, mast, chill, vibe etc. frequently. "
-        "This is a strict rule. Never, under any circumstance, use Hindi (Devanagari) script — "
-        "not even in news, quotes, or search results. "
-        "If text appears in Devanagari, you must transliterate it to Roman letters instead. "
         "All answers should look like natural Hinglish chat messages."
         "Kabhi bhi user ke gender ko directly mat mention karo. "
         "Do not repeat anything unless asked. Never use pronoun 'tu'. "
@@ -261,16 +280,20 @@ user_input = st.chat_input("Type your message here...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("Neha type kar rahi hai... 💭"):
-        reply = generate_reply(st.session_state.memory, user_input)
+    reply = generate_reply(st.session_state.memory, user_input)
 
-    # Clean reply if model includes "Neha:" itself
-    if reply and reply.strip().lower().startswith("neha:"):
-        reply = reply.split(":", 1)[1].strip()
+# Clean reply if model includes "Neha:" itself
+if reply and reply.strip().lower().startswith("neha:"):
+    reply = reply.split(":", 1)[1].strip()
 
-    st.session_state.messages.append({"role": "assistant", "content": reply})
-    save_memory(st.session_state.memory)
+# 🔤 Convert any Hindi (Devanagari) output to Roman Hinglish
+reply = transliterate_devanagari_to_roman(reply)
+
+st.session_state.messages.append({"role": "assistant", "content": reply})
+save_memory(st.session_state.memory)
 
     st.rerun()
+
 
 
 
