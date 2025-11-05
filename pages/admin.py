@@ -12,6 +12,13 @@ def get_connection():
     """Create a synchronous connection to Turso"""
     return libsql.connect(db_url=TURSO_URL, auth_token=TURSO_TOKEN)
 
+def get_all_users():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC")
+    data = cur.fetchall()
+    conn.close()
+    return data
        
 
 # -----------------------------
@@ -26,7 +33,7 @@ st.markdown("View user sessions and details from the Turso database.")
 # FETCH USER DATA
 # -----------------------------
 try:
-    result = client.execute("SELECT name, session_id, timestamp FROM users ORDER BY id DESC;")
+    result = get_all_users()
     rows = result.rows
 except Exception as e:
     st.error(f"Failed to fetch data: {e}")
