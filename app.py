@@ -54,7 +54,7 @@ def init_db():
         timestamp TEXT
     );
     """)
-        conn.close()
+    conn.close()
 
 def save_user_to_db(name, session_id):
     conn = get_connection()
@@ -345,4 +345,5 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
