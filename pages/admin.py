@@ -10,14 +10,19 @@ TURSO_AUTH_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
 def get_connection():
     """Create a synchronous connection to Turso"""
-    return libsql.connect(url=TURSO_URL, auth_token=TURSO_AUTH_TOKEN)
+    # Some builds of libsql_experimental expect positional args only
+    return libsql.connect(TURSO_URL, TURSO_AUTH_TOKEN)
 
 def get_all_users():
     """Fetch all user records"""
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC;")
-    data = cur.fetchall()
+    try:
+        cur.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC;")
+        data = cur.fetchall()
+    except Exception as e:
+        st.error(f"Database query error: {e}")
+        data = []
     conn.close()
     return data
 
