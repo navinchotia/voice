@@ -17,6 +17,8 @@ import uuid
 import socket
 import datetime as dt
 from libsql_client import create_client  # ✅ Turso client added
+import libsql_experimental as libsql
+from datetime import datetime
 
 # -----------------------------
 # CONFIGURATION
@@ -29,55 +31,56 @@ genai.configure(api_key=GEMINI_API_KEY)
 india_tz = pytz.timezone("Asia/Kolkata")
 
 # -----------------------------
-# TURSO DATABASE FUNCTIONS
+# DATABASE FUNCTIONS (TURSO)
 # -----------------------------
-def get_connection():
-    TURSO_URL = st.secrets["TURSO_URL"]
-    TURSO_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
-    # ✅ Use synchronous client
-    client = libsql_client.create_client_sync(
-        url=TURSO_URL,
-        auth_token=TURSO_TOKEN
-    )
-    return client
+
+# Load from Streamlit Secrets
+TURSO_URL = st.secrets["TURSO_URL"]
+TURSO_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
+
+def get_connection():
+    """Create a synchronous connection to Turso"""
+    return libsql.connect(db_url=TURSO_URL, auth_token=TURSO_TOKEN)
 
 def init_db():
-    client = get_connection()
-    client.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT,
-        name TEXT,
-        session_id TEXT
-        
-    );
-    """)
-    conn.close()
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                name TEXT,
+                session_id TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("DB init error:", e)
 
-def save_user_to_db(name, session_id):
-    conn = get_connection()
-    if not conn:
-        return
-    timestamp = datetime.now(india_tz).strftime("%Y-%m-%d %H:%M:%S")
-
-   
-
-    conn.execute(
-        "INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?)",
-        (timestamp, name, session_id)
-    )
-    conn.close()
+def save_user_to_db(name, session_id, ip_address=None, location=None):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?)",
+            (datetime.now(india_tz).strftime("%Y-%m-%d %H:%M:%S"), name, session_id)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("DB save error:", e)
 
 def get_all_users():
     conn = get_connection()
-    if not conn:
-        return []
-    rows = conn.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC").fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC")
+    data = cur.fetchall()
     conn.close()
-    return rows
+    return data
 
-init_db()
 
 # -----------------------------
 # GENERAL SETTINGS
@@ -344,6 +347,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
