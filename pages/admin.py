@@ -1,19 +1,16 @@
 import streamlit as st
-from libsql_client import create_client  # ✅ using experimental client (same as app.py)
-import os
+import libsql_experimental as libsql_client  # ✅ using experimental sync client
 from datetime import datetime
 
 # -----------------------------
 # DATABASE CONNECTION
 # -----------------------------
-# Make sure you set these secrets in Streamlit Cloud:
-# st.secrets["TURSO_URL"] and st.secrets["TURSO_AUTH_TOKEN"]
-
+# Make sure these are set in Streamlit secrets
 TURSO_URL = st.secrets["TURSO_URL"]
 TURSO_AUTH_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
-# Connect to Turso using the experimental client (same as app.py)
-client = create_client(
+# ✅ Connect to Turso using experimental client
+client = libsql_client.create_client_sync(
     url=TURSO_URL,
     auth_token=TURSO_AUTH_TOKEN
 )
