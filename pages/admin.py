@@ -10,7 +10,7 @@ TURSO_AUTH_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
 def get_connection():
     """Create a synchronous connection to Turso"""
-    return libsql.connect(db_url=TURSO_URL, auth_token=TURSO_TOKEN)
+    return libsql.connect(db_url=TURSO_URL, auth_token=TURSO_AUTH_TOKEN)
 
 def get_all_users():
     conn = get_connection()
