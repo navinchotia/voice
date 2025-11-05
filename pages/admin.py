@@ -1,19 +1,26 @@
 import streamlit as st
-import libsql_experimental as libsql_client  # ✅ using experimental sync client
+import libsql_experimental as libsql_client
 from datetime import datetime
 
 # -----------------------------
 # DATABASE CONNECTION
 # -----------------------------
-# Make sure these are set in Streamlit secrets
 TURSO_URL = st.secrets["TURSO_URL"]
 TURSO_AUTH_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
-# ✅ Connect to Turso using experimental client
-client = libsql_client.create_client_sync(
-    url=TURSO_URL,
-    auth_token=TURSO_AUTH_TOKEN
-)
+# ✅ Compatible connection (works for both sync and async builds)
+try:
+    # new-style
+    client = libsql_client.create_client(
+        url=TURSO_URL,
+        auth_token=TURSO_AUTH_TOKEN
+    )
+except AttributeError:
+    # fallback if only sync version is available
+    client = libsql_client.create_client_sync(
+        url=TURSO_URL,
+        auth_token=TURSO_AUTH_TOKEN
+    )
 
 # -----------------------------
 # CREATE TABLE (if not exists)
