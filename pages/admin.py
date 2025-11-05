@@ -9,17 +9,17 @@ TURSO_URL = st.secrets["TURSO_URL"]
 TURSO_AUTH_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
 def get_connection():
-    """Create a connection to the Turso database"""
-    return libsql.create_client(
-        url=TURSO_URL,
-        auth_token=TURSO_AUTH_TOKEN
-    )
+    """Create a synchronous connection to Turso"""
+    return libsql.connect(url=TURSO_URL, auth_token=TURSO_AUTH_TOKEN)
 
 def get_all_users():
     """Fetch all user records"""
-    client = get_connection()
-    result = client.execute("SELECT timestamp, name, session_id FROM users ORDER BY id DESC;")
-    return result.rows
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC;")
+    data = cur.fetchall()
+    conn.close()
+    return data
 
 # -----------------------------
 # STREAMLIT ADMIN DASHBOARD
