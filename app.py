@@ -47,35 +47,24 @@ def init_db():
     conn.commit()
     conn.close()
 
-def save_user_to_db(name, session_id, ip_address, location):
+def save_user_to_db(name, session_id ):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO user (timestamp, name, session_id, ip_address, location) VALUES (?, ?, ?, ?, ?)",
-              (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id, ip_address, location))
+    c.execute("INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?, ?, ?)",
+              (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id))
     conn.commit()
     conn.close()
 
 def get_all_users():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT timestamp, name, session_id, ip_address, location FROM user ORDER BY id DESC")
+    c.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC")
     data = c.fetchall()
     conn.close()
     return data
 
 init_db()
 
-# -----------------------------
-# IP + LOCATION HELPERS
-# -----------------------------
-def get_ip_location():
-    try:
-        ip = requests.get('https://api64.ipify.org?format=json', timeout=5).json()['ip']
-        loc_data = requests.get(f'https://ipapi.co/{ip}/json/', timeout=5).json()
-        location = f"{loc_data.get('city', 'Unknown')}, {loc_data.get('country_name', 'Unknown')}"
-        return ip, location
-    except Exception:
-        return "Unknown", "Unknown"
 
 # -----------------------------
 # GENERAL SETTINGS
@@ -279,11 +268,9 @@ if not memory.get("user_name"):
     name = st.text_input("Your Name:")
     if st.button("Start Chat"):
         if name.strip():
-            ip_address, location = get_ip_location()
             memory["user_name"] = name.strip().title()
             save_memory(memory)
-            save_user_to_db(memory["user_name"], get_user_id(), ip_address, location)  # ✅ DB save added
-            st.success(f"Nice to meet you, {memory['user_name']} from {location}! 😊")
+            save_user_to_db(memory["user_name"], get_user_id())  # ✅ DB save added
             st.rerun()
         else:
             st.warning("Please enter your name to continue.")
@@ -344,5 +331,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
