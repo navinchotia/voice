@@ -9,17 +9,17 @@ TURSO_URL = st.secrets["TURSO_URL"]
 TURSO_AUTH_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
 def get_connection():
-    """Create a synchronous connection to Turso"""
-    return libsql.connect(db_url=TURSO_URL, auth_token=TURSO_AUTH_TOKEN)
+    """Create a connection to the Turso database"""
+    return libsql.create_client(
+        url=TURSO_URL,
+        auth_token=TURSO_AUTH_TOKEN
+    )
 
 def get_all_users():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC")
-    data = cur.fetchall()
-    conn.close()
-    return data
-       
+    """Fetch all user records"""
+    client = get_connection()
+    result = client.execute("SELECT timestamp, name, session_id FROM users ORDER BY id DESC;")
+    return result.rows
 
 # -----------------------------
 # STREAMLIT ADMIN DASHBOARD
@@ -33,8 +33,7 @@ st.markdown("View user sessions and details from the Turso database.")
 # FETCH USER DATA
 # -----------------------------
 try:
-    result = get_all_users()
-    rows = result.rows
+    rows = get_all_users()
 except Exception as e:
     st.error(f"Failed to fetch data: {e}")
     rows = []
