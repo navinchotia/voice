@@ -1,3 +1,4 @@
+
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -13,11 +14,10 @@ import base64
 import hashlib
 import re
 from googletrans import Translator  # ✅ added for transliteration
+import sqlite3
 import uuid
 import socket
 import datetime as dt
-import libsql_experimental as libsql
-from datetime import datetime
 
 # -----------------------------
 # CONFIGURATION
@@ -30,55 +30,41 @@ genai.configure(api_key=GEMINI_API_KEY)
 india_tz = pytz.timezone("Asia/Kolkata")
 
 # -----------------------------
-# DATABASE FUNCTIONS (TURSO)
+# LOCAL DATABASE FUNCTIONS
 # -----------------------------
-
-
-# Load from Streamlit Secrets
-TURSO_URL = st.secrets["TURSO_URL"]
-TURSO_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
-
-def get_connection():
-    """Create a synchronous connection to Turso"""
-    return libsql.connect(db_url=TURSO_URL, auth_token=TURSO_TOKEN)
+DB_PATH = "userlog.db"
 
 def init_db():
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS user (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                name TEXT,
-                session_id TEXT
-            )
-        """)
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print("DB init error:", e)
-
-def save_user_to_db(name, session_id, ip_address=None, location=None):
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?)",
-            (datetime.now(india_tz).strftime("%Y-%m-%d %H:%M:%S"), name, session_id)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS user (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            name TEXT,
+            session_id TEXT
         )
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print("DB save error:", e)
+    """)
+    conn.commit()
+    conn.close()
+
+def save_user_to_db(name, session_id ):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?)",
+              (datetime.now(india_tz).strftime("%Y-%m-%d %H:%M:%S"), name, session_id))
+    conn.commit()
+    conn.close()
 
 def get_all_users():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC")
-    data = cur.fetchall()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT timestamp, name, session_id FROM user ORDER BY id DESC")
+    data = c.fetchall()
     conn.close()
     return data
+
+init_db()
 
 
 # -----------------------------
@@ -285,7 +271,7 @@ if not memory.get("user_name"):
         if name.strip():
             memory["user_name"] = name.strip().title()
             save_memory(memory)
-            save_user_to_db(memory["user_name"], get_user_id())  # ✅ Save in Turso
+            save_user_to_db(memory["user_name"], get_user_id())  # ✅ DB save added
             st.rerun()
         else:
             st.warning("Please enter your name to continue.")
@@ -346,7 +332,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
-
 
 
 
