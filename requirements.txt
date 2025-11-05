@@ -4,5 +4,6 @@ gtts
 pytz
 requests
 googletrans
-libsql-client
+libsql-experimental
+
 
