@@ -47,11 +47,10 @@ def init_db():
     client.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
         name TEXT,
-        session_id TEXT,
-        ip TEXT,
-        location TEXT,
-        timestamp TEXT
+        session_id TEXT
+        
     );
     """)
     conn.close()
@@ -345,5 +344,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
