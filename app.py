@@ -16,7 +16,6 @@ from googletrans import Translator  # ✅ added for transliteration
 import uuid
 import socket
 import datetime as dt
-from libsql_client import create_client  # ✅ Turso client added
 import libsql_experimental as libsql
 from datetime import datetime
 
@@ -347,6 +346,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
