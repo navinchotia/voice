@@ -6,7 +6,7 @@ st.title("🧾 Neha Chatbot – User Database")
 
 conn = sqlite3.connect("userlog.db")
 c = conn.cursor()
-c.execute("SELECT timestamp, name, session_id, ip, location FROM user ORDER BY id DESC")
+c.execute("SELECT timestamp, name, session_id, ip_address, location FROM user ORDER BY id DESC")
 rows = c.fetchall()
 conn.close()
 
