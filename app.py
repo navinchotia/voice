@@ -31,27 +31,29 @@ india_tz = pytz.timezone("Asia/Kolkata")
 # -----------------------------
 # TURSO DATABASE FUNCTIONS
 # -----------------------------
-TURSO_URL = os.getenv("TURSO_URL")
-TURSO_TOKEN = os.getenv("TURSO_TOKEN")
-
 def get_connection():
-    if not TURSO_URL or not TURSO_TOKEN:
-        st.error("⚠️ Turso not configured. Please set TURSO_URL and TURSO_TOKEN in Streamlit Secrets.")
-        return None
-    return create_client(url=TURSO_URL, auth_token=TURSO_TOKEN)
+    TURSO_URL = st.secrets["TURSO_URL"]
+    TURSO_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
+
+    # ✅ Use synchronous client
+    client = libsql_client.create_client_sync(
+        url=TURSO_URL,
+        auth_token=TURSO_TOKEN
+    )
+    return client
 
 def init_db():
-    conn = get_connection()
-    if conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS user (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                name TEXT,
-                session_id TEXT
-               
-            )
-        """)
+    client = get_connection()
+    client.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        session_id TEXT,
+        ip TEXT,
+        location TEXT,
+        timestamp TEXT
+    );
+    """)
         conn.close()
 
 def save_user_to_db(name, session_id):
@@ -343,3 +345,4 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
