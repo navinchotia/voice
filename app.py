@@ -50,7 +50,7 @@ def init_db():
 def save_user_to_db(name, session_id ):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?, ?, ?)",
+    c.execute("INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?)",
               (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id))
     conn.commit()
     conn.close()
@@ -331,6 +331,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
