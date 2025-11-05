@@ -46,13 +46,30 @@ def init_db():
     conn.commit()
     conn.close()
 
-def save_user_to_db(name, session_id, ip_address, location):
+def save_user_to_db(name, session_id):
+    try:
+        # ✅ Get user IP
+        ip = requests.get("https://api.ipify.org").text
+
+        # ✅ Get location details
+        location_data = requests.get(f"https://ipapi.co/{ip}/json/").json()
+        city = location_data.get("city", "")
+        country = location_data.get("country_name", "")
+        location = f"{city}, {country}" if city else country
+
+    except Exception:
+        ip = "Unknown"
+        location = "Unknown"
+
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO user (timestamp, name, session_id, ip_address, location) VALUES (?, ?, ?, ?, ?)",
-              (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id, ip_address, location))
+    c.execute(
+        "INSERT INTO user (timestamp, name, session_id, ip, location) VALUES (?, ?, ?, ?, ?)",
+        (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id, ip, location)
+    )
     conn.commit()
     conn.close()
+
 
 def get_all_users():
     conn = sqlite3.connect(DB_PATH)
@@ -63,6 +80,30 @@ def get_all_users():
     return data
 
 init_db()
+import sqlite3
+
+DB_PATH = "userlog.db"
+
+# Connect to existing database
+conn = sqlite3.connect(DB_PATH)
+c = conn.cursor()
+
+# ✅ Add new columns if they don't already exist
+try:
+    c.execute("ALTER TABLE user ADD COLUMN ip TEXT;")
+except:
+    pass
+
+try:
+    c.execute("ALTER TABLE user ADD COLUMN location TEXT;")
+except:
+    pass
+
+conn.commit()
+conn.close()
+
+print("Database updated successfully ✅")
+
 
 # -----------------------------
 # IP + LOCATION HELPERS
@@ -343,5 +384,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
