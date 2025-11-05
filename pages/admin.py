@@ -10,7 +10,7 @@ TURSO_TOKEN = st.secrets["TURSO_AUTH_TOKEN"]
 
 def get_connection():
     """Return a live connection to Turso DB."""
-    return libsql.connect(db_url=TURSO_URL, auth_token=TURSO_TOKEN)
+    return libsql.connect(TURSO_URL, TURSO_TOKEN)
 
 # -----------------------------
 # DATA FETCH FUNCTION
