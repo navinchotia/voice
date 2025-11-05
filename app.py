@@ -26,6 +26,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or "YOUR_GEMINI_API_KEY"
 SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "YOUR_SERPER_API_KEY"
 genai.configure(api_key=GEMINI_API_KEY)
 
+# Set timezone to Asia/Kolkata
+india_tz = pytz.timezone("Asia/Kolkata")
+
 # -----------------------------
 # LOCAL DATABASE FUNCTIONS
 # -----------------------------
@@ -51,7 +54,7 @@ def save_user_to_db(name, session_id ):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("INSERT INTO user (timestamp, name, session_id) VALUES (?, ?, ?)",
-              (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, session_id))
+              (datetime.now(india_tz).strftime("%Y-%m-%d %H:%M:%S"), name, session_id))
     conn.commit()
     conn.close()
 
@@ -331,6 +334,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
