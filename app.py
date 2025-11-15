@@ -13,8 +13,6 @@ import tempfile
 import base64
 import hashlib
 import re
-from googletrans import Translator  # ✅ added for transliteration
-import sqlite3
 import uuid
 import socket
 import datetime as dt
@@ -73,7 +71,6 @@ init_db()
 BOT_NAME = "Neha"
 MEMORY_DIR = "user_memories"
 os.makedirs(MEMORY_DIR, exist_ok=True)
-translator = Translator()  # ✅ initialize once
 
 # -----------------------------
 # SESSION-BASED MEMORY FUNCTIONS
@@ -198,15 +195,6 @@ def summarize_old_memory(memory):
         print(f"[Memory summarization error: {e}]")
     return memory
 
-# ✅ transliteration helper
-def transliterate_to_roman(text):
-    try:
-        if re.search(r'[\u0900-\u097F]', text):
-            result = translator.translate(text, src='hi', dest='en')
-            return result.text
-        return text
-    except Exception:
-        return text
 
 def generate_reply(memory, user_input):
     if not user_input.strip():
@@ -332,6 +320,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
