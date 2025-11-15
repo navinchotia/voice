@@ -337,7 +337,7 @@ for msg in st.session_state.messages:
                     unsafe_allow_html=True
                 )
         except Exception as e:
-            st.warning(f"Speech issue: {e}")
+            st.warning(f"Speech issue: Service Down")
 
 user_input = st.chat_input("Type your message here...")
 
@@ -350,6 +350,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
