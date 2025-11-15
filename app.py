@@ -72,7 +72,6 @@ init_db()
 BOT_NAME = "Neha"
 MEMORY_DIR = "user_memories"
 os.makedirs(MEMORY_DIR, exist_ok=True)
-translator = Translator()  # ✅ initialize once
 
 # -----------------------------
 # SESSION-BASED MEMORY FUNCTIONS
@@ -332,6 +331,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
