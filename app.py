@@ -13,7 +13,6 @@ import tempfile
 import base64
 import hashlib
 import re
-from googletrans import Translator  # ✅ added for transliteration
 import sqlite3
 import uuid
 import socket
@@ -198,16 +197,6 @@ def summarize_old_memory(memory):
         print(f"[Memory summarization error: {e}]")
     return memory
 
-# ✅ transliteration helper
-def transliterate_to_roman(text):
-    try:
-        if re.search(r'[\u0900-\u097F]', text):
-            result = translator.translate(text, src='hi', dest='en')
-            return result.text
-        return text
-    except Exception:
-        return text
-
 def generate_reply(memory, user_input):
     if not user_input.strip():
         return "Kuch toh bolo! 😄"
@@ -343,6 +332,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
