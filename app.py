@@ -212,7 +212,7 @@ def generate_reply(memory, user_input):
         model = genai.GenerativeModel("gemini-2.5-flash")
         result = model.generate_content(prompt)
         reply = result.text.strip()
-        reply = transliterate_to_roman(reply)
+       
     except Exception as e:
         reply = f"Oops! Thoda issue aaya: {e}"
     memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply})
@@ -321,6 +321,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
