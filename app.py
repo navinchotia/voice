@@ -306,7 +306,7 @@ if role == "bot":
         try:
             # Avoid hammering TTS server
             if len(msg["content"].strip()) == 0:
-                continue
+            continue
 
             # Clean minimal – keep Hindi-friendly chars
             clean_text = re.sub(r'[^a-zA-Z0-9\u0900-\u097F\s,.!?-]', '', msg["content"])
@@ -347,6 +347,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
