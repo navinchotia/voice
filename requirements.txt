@@ -1,8 +1,8 @@
 streamlit
 google-generativeai
-gTTS
+gtts
 pytz
 requests
-protobuf
-regex
-python-dotenv
+googletrans
+libsql-experimental
+libsql_client
