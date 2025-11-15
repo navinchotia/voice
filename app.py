@@ -183,7 +183,7 @@ def summarize_old_memory(memory):
     if len(memory.get("chat_history", [])) < 10:
         return memory
     try:
-        model = genai.GenerativeModel("gemini-2.5-pro-preview-tts")
+        model = genai.GenerativeModel("gemini-2.5-flash-preview-tts")
         past_text = "\n".join(
             [f"User: {c['user']}\n{BOT_NAME}: {c['bot']}" for c in memory["chat_history"][-10:]]
         )
@@ -350,3 +350,4 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
