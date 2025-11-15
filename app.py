@@ -184,7 +184,7 @@ def summarize_old_memory(memory):
     if len(memory.get("chat_history", [])) < 10:
         return memory
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-pro-preview-tts")
         past_text = "\n".join(
             [f"User: {c['user']}\n{BOT_NAME}: {c['bot']}" for c in memory["chat_history"][-10:]]
         )
@@ -201,7 +201,7 @@ def summarize_old_memory(memory):
     return memory
 
 
-def safe_gemini_call(prompt, model_name="gemini-2.5-flash", max_retries=5):
+def safe_gemini_call(prompt, model_name="gemini-2.5-pro-preview-tts", max_retries=5):
     for attempt in range(max_retries):
         try:
             model = genai.GenerativeModel(model_name)
@@ -342,6 +342,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
