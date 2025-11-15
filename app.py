@@ -302,24 +302,35 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
-    if role == "bot":
-        try:
-            clean_text = re.sub(r'[^\w\s,-?.!]', '', msg["content"])
+if role == "bot":
+    try:
+        clean_text = re.sub(r'[^\w\s,-?.!]', '', msg["content"])
+
+        # ---- 429 FIX: cache key ----
+        cache_key = hashlib.md5(clean_text.encode()).hexdigest()
+        cache_file = f"/tmp/{cache_key}.mp3"
+
+        # ---- generate only if not cached ----
+        if not os.path.exists(cache_file):
             tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-                tts.save(fp.name)
-                audio_bytes = open(fp.name, "rb").read()
-                audio_base64 = base64.b64encode(audio_bytes).decode()
-                st.markdown(
-                    f"""
-                    <audio controls style='margin-top:-6px;'>
-                        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                    </audio>
-                    """,
-                    unsafe_allow_html=True
-                )
-        except Exception as e:
-            st.warning(f"Speech issue: {e}")
+            tts.save(cache_file)
+
+        # ---- load from cache always ----
+        audio_bytes = open(cache_file, "rb").read()
+        audio_base64 = base64.b64encode(audio_bytes).decode()
+
+        st.markdown(
+            f"""
+            <audio controls style='margin-top:-6px;'>
+                <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+            </audio>
+            """,
+            unsafe_allow_html=True
+        )
+
+    except Exception as e:
+        st.warning(f"Speech issue: {e}")
+    
 
 user_input = st.chat_input("Type your message here...")
 
@@ -332,6 +343,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
