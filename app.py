@@ -19,7 +19,7 @@ def safe_gemini_call(prompt, model_name="gemini-2.0-flash", max_retries=5):
                 return f"[Error] {e}"
             wait = (2 ** attempt) + random.uniform(0, 1.0)
             time.sleep(wait)
-    return "[Error] Too many requests – please try again."quests
+    return "[Error] Too many requests – please try again."
 from gtts import gTTS
 from io import BytesIO
 import tempfile
@@ -124,3 +124,4 @@ if prompt:
 
     st.session_state.messages.append({"role": "bot", "content": bot_reply})
     st.markdown(f"<div class='bot'>{bot_reply}</div>", unsafe_allow_html=True)
+
