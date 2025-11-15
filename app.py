@@ -1,4 +1,3 @@
-
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -201,7 +200,10 @@ def summarize_old_memory(memory):
     return memory
 
 
-def safe_gemini_call(prompt, model_name="gemini-2.5-pro-preview-tts", max_retries=5):
+# ----------------------------------
+# ONLY THIS IS CHANGED ⬇️
+# ----------------------------------
+def safe_gemini_call(prompt, model_name="gemini-2.5-flash-preview-tts", max_retries=5):
     for attempt in range(max_retries):
         try:
             model = genai.GenerativeModel(model_name)
@@ -212,12 +214,13 @@ def safe_gemini_call(prompt, model_name="gemini-2.5-pro-preview-tts", max_retrie
             if "429" not in err:
                 return f"[Error] {err}"
             
-            # Exponential backoff
             wait = (2 ** attempt) + random.uniform(0, 1)
             time.sleep(wait)
 
     return "[Error] Too many requests – please try again."
-    
+# ----------------------------------
+
+
 def generate_reply(memory, user_input):
     if not user_input.strip():
         return "Kuch toh bolo! 😄"
@@ -225,17 +228,22 @@ def generate_reply(memory, user_input):
     if any(w in user_input.lower() for w in ["news", "weather", "price", "rate", "update"]):
         info = web_search(user_input)
         return f"Mujhe live search se pata chala: {info}"
+
     context = "\n".join(
         [f"You: {c['user']}\n{BOT_NAME}: {c['bot']}" for c in memory.get("chat_history", [])[-8:]]
     )
     prompt = f"{build_system_prompt(memory)}\n\nConversation:\n{context}\n\nYou: {user_input}\n{BOT_NAME}:"
+
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        # ----------------------------------
+        # ONLY THIS IS CHANGED ⬇️
+        model = genai.GenerativeModel("gemini-2.5-flash-preview-tts")
         reply = safe_gemini_call(prompt)
-        
-        
+        # ----------------------------------
+
     except Exception as e:
         reply = f"Oops! Thoda issue aaya: {e}"
+
     memory.setdefault("chat_history", []).append({"user": user_input, "bot": reply})
     if len(memory["chat_history"]) % 20 == 0:
         summarize_old_memory(memory)
@@ -281,7 +289,7 @@ if not memory.get("user_name"):
         if name.strip():
             memory["user_name"] = name.strip().title()
             save_memory(memory)
-            save_user_to_db(memory["user_name"], get_user_id())  # ✅ DB save added
+            save_user_to_db(memory["user_name"], get_user_id())
             st.rerun()
         else:
             st.warning("Please enter your name to continue.")
@@ -342,9 +350,3 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
-
-
-
-
-
-
