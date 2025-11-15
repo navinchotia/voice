@@ -1,4 +1,4 @@
-
+# app.py
 import streamlit as st
 import google.generativeai as genai
 import os
@@ -18,6 +18,7 @@ import sqlite3
 import uuid
 import socket
 import datetime as dt
+import time
 
 # -----------------------------
 # CONFIGURATION
@@ -25,6 +26,10 @@ import datetime as dt
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or "YOUR_GEMINI_API_KEY"
 SERPER_API_KEY = os.getenv("SERPER_API_KEY") or "YOUR_SERPER_API_KEY"
 genai.configure(api_key=GEMINI_API_KEY)
+
+# Choose the Gemini TTS model (you chose gemini-2.5-flash-tts)
+GEMINI_TTS_MODEL = "gemini-2.5-flash-tts"
+GEMINI_TTS_VOICE = "hindi_female_1"  # recommended voice label (best-effort; actual label depends on SDK/endpoint)
 
 # Set timezone to Asia/Kolkata
 india_tz = pytz.timezone("Asia/Kolkata")
@@ -233,6 +238,90 @@ def generate_reply(memory, user_input):
     return reply
 
 # -----------------------------
+# TTS HELPERS
+# -----------------------------
+def clean_for_tts(text):
+    # minimal cleaning: remove weird control chars but keep punctuation.
+    return re.sub(r'[\x00-\x1f\x7f]', '', text).strip()
+
+def generate_gtts_bytes(text, lang="hi"):
+    """
+    Generate gTTS audio bytes for given text. Returns bytes.
+    This is the safe fallback and should always work (subject to gTTS rate limits if used heavily).
+    We call it on-demand only (button click).
+    """
+    clean_text = clean_for_tts(text)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+        try:
+            tts = gTTS(text=clean_text, lang=lang, tld='co.in', slow=False)
+            tts.save(fp.name)
+            fp.flush()
+            with open(fp.name, "rb") as fh:
+                audio_bytes = fh.read()
+            return audio_bytes
+        finally:
+            try:
+                os.unlink(fp.name)
+            except Exception:
+                pass
+
+def generate_gemini_tts_bytes(text, model=GEMINI_TTS_MODEL, voice=GEMINI_TTS_VOICE):
+    """
+    Attempt to generate TTS using google.generativeai (Gemini).
+    NOTE: The google.generativeai python SDK's audio API varies by version.
+    This function tries a couple of likely call patterns and falls back to raising Exception.
+    If this fails for you, please check your `google.generativeai` library version and
+    the provider docs for the correct audio synthesis call.
+    """
+    clean_text = clean_for_tts(text)
+    # Try multiple approaches in order (best-effort).
+    last_error = None
+
+    # Approach 1: genai.audio.speech.synthesize (common pattern in some SDK versions)
+    try:
+        if hasattr(genai, "audio") and hasattr(genai.audio, "speech"):
+            # Some SDK variants return an object with .audio or raw bytes.
+            resp = genai.audio.speech.synthesize(model=model, input=clean_text, voice=voice, format="mp3")
+            # If resp is bytes-like
+            if isinstance(resp, (bytes, bytearray)):
+                return bytes(resp)
+            # If resp has attribute 'audio' or 'binary'
+            if hasattr(resp, "audio"):
+                return resp.audio
+            if isinstance(resp, dict) and resp.get("audio"):
+                return resp["audio"]
+    except Exception as e:
+        last_error = e
+
+    # Approach 2: genai.generate or GenerativeModel generate with audio output (less common)
+    try:
+        if hasattr(genai, "GenerativeModel"):
+            gm = genai.GenerativeModel(model)
+            # Some versions support .audio() or .generate_audio; try a safe generic call
+            if hasattr(gm, "generate_audio"):
+                aresp = gm.generate_audio({"input": clean_text, "voice": voice, "audio_format": "mp3"})
+                if isinstance(aresp, (bytes, bytearray)):
+                    return bytes(aresp)
+                if isinstance(aresp, dict) and aresp.get("audio"):
+                    return aresp["audio"]
+            # fallback: try .generate_content and hope for base64 audio in response (rare)
+            if hasattr(gm, "generate_content"):
+                res = gm.generate_content(clean_text)
+                text_resp = getattr(res, "text", "") or ""
+                # attempt to parse base64 in text_resp (not typical, but safe to check)
+                b64 = re.search(r"base64,([A-Za-z0-9+/=]+\s*)", text_resp)
+                if b64:
+                    try:
+                        return base64.b64decode(b64.group(1))
+                    except Exception:
+                        pass
+    except Exception as e:
+        last_error = e
+
+    # If all attempts fail, raise an informative exception so caller can fallback to gTTS.
+    raise RuntimeError(f"Gemini TTS generation failed. Last error: {last_error}")
+
+# -----------------------------
 # STREAMLIT UI
 # -----------------------------
 st.set_page_config(page_title="Neha – Your Hinglish AI Friend", page_icon="💬")
@@ -283,7 +372,8 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": f"Namaste {memory['user_name']}! 😊 Main Neha hun. Main Hinglish me baat kar sakti hun."}
     ]
 
-for msg in st.session_state.messages:
+# Conversation area (render messages)
+for idx, msg in enumerate(st.session_state.messages):
     role = "user" if msg["role"] == "user" else "bot"
     name = "You" if role == "user" else "Neha"
     bubble_html = f"""
@@ -302,24 +392,41 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
+    # For bot messages: show two on-demand TTS buttons
     if role == "bot":
-        try:
-            clean_text = re.sub(r'[^\w\s,-?.!]', '', msg["content"])
-            tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-                tts.save(fp.name)
-                audio_bytes = open(fp.name, "rb").read()
-                audio_base64 = base64.b64encode(audio_bytes).decode()
-                st.markdown(
-                    f"""
-                    <audio controls style='margin-top:-6px;'>
-                        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                    </audio>
-                    """,
-                    unsafe_allow_html=True
-                )
-        except Exception as e:
-            st.warning(f"Speech issue: {e}")
+        bot_text = msg["content"]
+        col1, col2, col3 = st.columns([1,1,6])
+        with col1:
+            # gTTS button
+            key_g = f"gtts_{idx}_{hash(bot_text)}"
+            if st.button("🔊 Play Voice (gTTS)", key=key_g):
+                with st.spinner("Generating gTTS audio..."):
+                    try:
+                        audio_bytes = generate_gtts_bytes(bot_text, lang="hi")
+                        st.audio(audio_bytes, format="audio/mp3")
+                    except Exception as e:
+                        st.warning(f"gTTS issue: {e}")
+        with col2:
+            # Gemini HQ TTS button
+            key_gem = f"gemini_{idx}_{hash(bot_text)}"
+            if st.button("🎤 Play HQ Voice (Gemini)", key=key_gem):
+                with st.spinner("Generating Gemini HQ audio..."):
+                    try:
+                        # Try to generate Gemini TTS bytes
+                        audio_bytes = generate_gemini_tts_bytes(bot_text)
+                        st.audio(audio_bytes, format="audio/mp3")
+                    except Exception as e:
+                        # On failure, show clear message and fallback option
+                        st.warning(f"Gemini TTS error: {e}")
+                        st.info("Falling back to gTTS. (Gemini TTS may require a specific SDK version or enabled API key.)")
+                        try:
+                            audio_bytes = generate_gtts_bytes(bot_text, lang="hi")
+                            st.audio(audio_bytes, format="audio/mp3")
+                        except Exception as e2:
+                            st.error(f"Fallback gTTS also failed: {e2}")
+        # spacer column to keep layout neat
+        with col3:
+            st.markdown("", unsafe_allow_html=True)
 
 user_input = st.chat_input("Type your message here...")
 
@@ -327,12 +434,10 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("Neha type kar rahi hai... 💭"):
         reply = generate_reply(memory, user_input)
+    # If LLM returns with "Neha:" prefix, remove it
     if reply and reply.strip().lower().startswith("neha:"):
         reply = reply.split(":", 1)[1].strip()
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
-    st.rerun()
-
-
-
-
+    # rerun so the new message and its buttons render (and to keep chat_input empty)
+    st.experimental_rerun()
