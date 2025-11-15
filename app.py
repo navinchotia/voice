@@ -200,15 +200,7 @@ def summarize_old_memory(memory):
         print(f"[Memory summarization error: {e}]")
     return memory
 
-# ✅ transliteration helper
-def transliterate_to_roman(text):
-    try:
-        if re.search(r'[\u0900-\u097F]', text):
-            result = translator.translate(text, src='hi', dest='en')
-            return result.text
-        return text
-    except Exception:
-        return text
+
 def safe_gemini_call(prompt, model_name="gemini-2.5-flash", max_retries=5):
     for attempt in range(max_retries):
         try:
@@ -225,6 +217,7 @@ def safe_gemini_call(prompt, model_name="gemini-2.5-flash", max_retries=5):
             time.sleep(wait)
 
     return "[Error] Too many requests – please try again."
+    
 def generate_reply(memory, user_input):
     if not user_input.strip():
         return "Kuch toh bolo! 😄"
@@ -239,7 +232,7 @@ def generate_reply(memory, user_input):
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
         reply = safe_gemini_call(prompt)
-        reply = result.text.strip()
+        
         
     except Exception as e:
         reply = f"Oops! Thoda issue aaya: {e}"
@@ -349,6 +342,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
