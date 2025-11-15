@@ -302,24 +302,39 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
-    if role == "bot":
+       if role == "bot":
         try:
-            clean_text = re.sub(r'[^\w\s,-?.!]', '', msg["content"])
-            tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-                tts.save(fp.name)
-                audio_bytes = open(fp.name, "rb").read()
-                audio_base64 = base64.b64encode(audio_bytes).decode()
-                st.markdown(
-                    f"""
-                    <audio controls style='margin-top:-6px;'>
-                        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                    </audio>
-                    """,
-                    unsafe_allow_html=True
-                )
+            # Avoid hammering TTS server
+            if len(msg["content"].strip()) == 0:
+                continue
+
+            # Clean minimal – keep Hindi-friendly chars
+            clean_text = re.sub(r'[^a-zA-Z0-9\u0900-\u097F\s,.!?-]', '', msg["content"])
+
+            # Cache preventing repeat gTTS calls
+            cache_key = hashlib.md5(clean_text.encode()).hexdigest()
+            cache_file = f"/tmp/{cache_key}.mp3"
+
+            # Generate only if not already cached
+            if not os.path.exists(cache_file):
+                tts = gTTS(text=clean_text, lang="hi", tld='co.in', slow=False)
+                tts.save(cache_file)
+
+            audio_bytes = open(cache_file, "rb").read()
+            audio_base64 = base64.b64encode(audio_bytes).decode()
+
+            st.markdown(
+                f"""
+                <audio controls style='margin-top:-6px;'>
+                    <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                </audio>
+                """,
+                unsafe_allow_html=True
+            )
+
         except Exception as e:
-            st.warning(f"Speech issue: {e}")
+            st.warning("Speech issue: TTS temporarily unavailable. Try again.")
+
 
 user_input = st.chat_input("Type your message here...")
 
@@ -332,6 +347,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
