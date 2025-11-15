@@ -302,7 +302,7 @@ for msg in st.session_state.messages:
     """
     st.markdown(bubble_html, unsafe_allow_html=True)
 
-       if role == "bot":
+if role == "bot":
         try:
             # Avoid hammering TTS server
             if len(msg["content"].strip()) == 0:
@@ -347,6 +347,7 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
 
