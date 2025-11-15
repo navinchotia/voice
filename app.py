@@ -217,7 +217,7 @@ def safe_gemini_call(prompt, model_name="gemini-2.5-flash", max_retries=5):
             wait = (2 ** attempt) + random.uniform(0, 1)
             time.sleep(wait)
 
-    return "[Error] Too many requests – please try again."
+    return "Speech service is down temporarily. Please check again!"
 # ----------------------------------
 
 
@@ -350,5 +350,6 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
     save_memory(memory)
     st.rerun()
+
 
 
